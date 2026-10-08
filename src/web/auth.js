@@ -17,12 +17,11 @@ export function decompressP256(publicKey) {
   if (Number(y & 1n) !== (publicKey[0] & 1)) y = P-y;
   return Buffer.concat([Buffer.from([4]), publicKey.subarray(1), Buffer.from(y.toString(16).padStart(64,'0'),'hex')]);
 }
-export async function verifyAdmissionToken(token, deviceName, now = Math.floor(Date.now()/1000)) {
+export async function verifyAdmissionToken(token, now = Math.floor(Date.now()/1000)) {
   const parts = token.split('.');
   if (parts.length !== 3 || parts.some(s => !/^[A-Za-z0-9_-]+$/.test(s))) throw new Error('Invalid binding token');
   const [pub, payload, sig] = parts.map(s => Buffer.from(s.replaceAll('-','+').replaceAll('_','/'),'base64'));
   const publicHex = pub.toString('hex');
-  if (deviceName !== `YD-${publicHex.slice(0,12)}`) throw new Error('Binding token does not match the selected device identity');
   if (sig.length !== 64 || payload.length < 16) throw new Error('Invalid binding token length');
   const key = await crypto.subtle.importKey('raw', decompressP256(pub), { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
   if (!await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,sig,Buffer.from(`${parts[0]}.${parts[1]}`))) {

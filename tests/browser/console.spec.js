@@ -11,7 +11,7 @@ function admissionToken() {
   const message=`${pub.toString('base64url')}.${payload.toString('base64url')}`;
   return `${message}.${sign('sha256',Buffer.from(message),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url')}`;
 }
-async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFailure=false,failTheme=false,bindUuidForm='canonical',initialScreen=4}={}) {
+async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFailure=false,failTheme=false,bindUuidForm='canonical',initialScreen=4,pickerName=name}={}) {
   await page.addInitScript(({name,record,token,bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen})=>{
     if(stored && !localStorage.getItem('t100.mfg.auth.v1'))localStorage.setItem('t100.mfg.auth.v1',JSON.stringify([record]));
     if(storageFailure)Storage.prototype.setItem=()=>{throw new DOMException('Full','QuotaExceededError');};
@@ -26,6 +26,10 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
       c.writeValueWithResponse=async value=>{
         const data=Array.from(value);window.mock.writes.push({id,data,stored:!!localStorage.getItem('t100.mfg.auth.v1')});
         if(['fee2','fee3'].includes(id)&&data[0]===0x54)window.mock.bound=true;
+        if(['fee2','fee3'].includes(id)&&[0x52,0x53].includes(data[0])) {
+          window.mock.resetWrittenAt=Date.now();
+          setTimeout(()=>{window.mock.resetConnectionSurvived=device.gatt.connected;window.mock.bound=false;device.gatt.disconnect();},400);
+        }
         if(['fee2','fee3'].includes(id)&&data[0]===0x6a&&window.mock.failTheme)throw new Error('Injected theme upload failure');
         if(id==='ffc3' && window.mock.oadDisconnect) { device.gatt.disconnect(); return; }
         if(id==='ffc3')setTimeout(()=>{c.value=new DataView(new Uint8Array([255,255]).buffer);c.dispatchEvent(new Event('characteristicvaluechanged'));},10);
@@ -65,7 +69,7 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
     Object.defineProperty(navigator,'bluetooth',{configurable:true,value:{requestDevice:async options=>{
       window.mock.requests.push(options);if(window.mock.cancel)throw new DOMException('No device selected','NotFoundError');return device;
     }}});
-  },{name,record,token:admissionToken(),bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen});
+  },{name:pickerName,record,token:admissionToken(),bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen});
 }
 async function swipeTo(page, target) {
   const views = ['connect','test','oad'];
@@ -490,3 +494,32 @@ test('transparent device unit wheel sends units and follows Bluetooth readings',
   await wheel.press('Home');
   await expect.poll(()=>page.evaluate(()=>mock.writes.some(w=>w.data[0]===0x62 && w.data.at(-1)===0))).toBe(true);
 });
+
+test('bound device without local auth explains recovery instead of asking to bind again',async({page})=>{
+  await mockBluetooth(page,{bound:true,stored:false});await connect(page);
+  const before=await page.evaluate(()=>mock.writes.length);
+  await page.locator('#simBindBtn').click();
+  await expect(page.locator('#simLog')).toContainText('Device reports BOUND');
+  await expect(page.locator('#simLog')).toContainText('Restore its auth JSON');
+  expect(await page.evaluate(()=>mock.writes.length)).toBe(before);
+  expect(await page.evaluate(()=>localStorage.getItem('t100.mfg.auth.v1'))).toBeNull();
+});
+
+for (const [button,message] of [['#simResetBtn','Reset sent'],['#factoryBtn','Factory reset sent']]) {
+  test(`binding uses selected device name and ${message} clears its credential`,async({page})=>{
+    const pickerName='YD-03b93ed7594b';
+    await mockBluetooth(page,{bound:false,stored:false,pickerName});await connect(page);
+    await page.locator('#simBindBtn').click();
+    await expect(page.locator('#simLog')).toContainText('Bind complete',{timeout:20000});
+    const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('t100.mfg.auth.v1')));
+    expect(saved[0].name).toBe(pickerName);
+    expect(saved[0].pub_key).toBe(record.pub_key);
+    await page.getByRole('button',{name:'Select Bluetooth Device',exact:true}).first().click();
+    await expect(page.locator('#simStateText')).toHaveText('Connected');
+    page.on('dialog',dialog=>dialog.accept());
+    await page.locator(button).click();
+    await expect(page.locator('#simLog')).toContainText(message);
+    expect(await page.evaluate(()=>mock.resetConnectionSurvived)).toBe(true);
+    expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('t100.mfg.auth.v1')))).toEqual([]);
+  });
+}

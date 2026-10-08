@@ -61,7 +61,7 @@ export class BrowserConsole extends DeviceActions {
         if (this.connection!==connection) return;
         if (this.abortRef) this.abortRef.aborted=true;
         this.connection=null; this.entry=null;
-        this.emit('ConnectionLost',{deviceId:entry.ui.id,reason:'Bluetooth link disconnected'});
+        this.emit('ConnectionLost',{deviceId:entry.ui.id,reason:connection.resetPending ? 'reset-complete' : 'Bluetooth link disconnected'});
       });
       const {services}=await this.discoverAll(connection);
       if (!services.some(service=>matches(service.uuid,GATT.vendor.service))) throw new Error('T100 vendor service is missing. Check firmware and browser permissions.');
@@ -122,16 +122,9 @@ export class BrowserConsole extends DeviceActions {
   pickThemeIdChar(chars) { return chars.find(c=>matches(c.serviceUuid,GATT.vendor.service)&&matches(c.uuid,GATT.vendor.themeId)); }
   writeTypeFromCharacteristic(char) { return char.properties.includes('write')?'withResponse':char.properties.includes('writeWithoutResponse')?'withoutResponse':null; }
   async runFeeSessionAuth(connection,entry,chars,required=false) {
-    let publicKey;
-    const token=this.pickBindTokenChar(chars);
-    if(token && entry.ui.bindState!=='bound') {
-      const raw=await this.adapter.readCharacteristic(connection,token);
-      publicKey=Buffer.from(raw.toString('utf8').split('.')[0],'base64').toString('hex');
-      if (entry.device.name!==`YD-${publicKey.slice(0,12)}`) throw new Error('Device token identity mismatch');
-    }
-    const record=this.auth.resolve(entry.device,publicKey);
+    const record=this.auth.resolve(entry.device);
     if(!record && required) throw new Error('No browser auth credential for this device. Bind it or import its auth JSON.');
-    return {ctx:{deviceP256PubHex:record?.pub_key||publicKey},auth8:record?Buffer.from(record.auth_key,'ascii'):null};
+    return {ctx:{deviceP256PubHex:record?.pub_key},auth8:record?Buffer.from(record.auth_key,'ascii'):null};
   }
   async writeVendorPayloadWithOptionalAuth(payload,options={}) {
     const {connection,entry}=this.requireConnectedEntry();
@@ -160,6 +153,9 @@ export class BrowserConsole extends DeviceActions {
   bindDevice() {
     const {connection,entry}=this.requireConnectedEntry();
     return this.runGattAction('Bind + emotion',async abortRef=>{
+      if (entry.ui.bindState === 'bound' && !this.auth.resolve(entry.device)) {
+        throw new Error('Device reports BOUND, but this browser has no saved auth credential. Restore its auth JSON from the browser or app used to bind it. Clicking Bind again cannot recover the credential.');
+      }
       const preset=await loadPreset();
       if(abortRef.aborted || this.connection!==connection) throw new Error('Binding cancelled');
       const {characteristics}=await this.discoverAll(connection);
@@ -167,7 +163,7 @@ export class BrowserConsole extends DeviceActions {
         const token=this.pickBindTokenChar(characteristics);
         if(!token) throw new Error('Binding token is unavailable. Disconnect, select the device again to refresh Bluetooth permissions, and retry.');
         const raw=await this.adapter.readCharacteristic(connection,token);
-        const record=await verifyAdmissionToken(raw.toString('utf8').replace(/\0.*$/s,''),entry.device.name);
+        const record=await verifyAdmissionToken(raw.toString('utf8').replace(/\0.*$/s,''));
         if(abortRef.aborted || this.connection!==connection) throw new Error('Binding cancelled');
         // Persist and verify BEFORE committing; retain it if the link/upload fails.
         this.auth.save({...record,deviceId:entry.device.id,name:entry.device.name});
@@ -184,22 +180,47 @@ export class BrowserConsole extends DeviceActions {
   }
   clearCredential(device) {
     try { this.auth.remove(device); return ''; }
-    catch (error) { return `Device reset succeeded, but browser credential cleanup failed: ${error.message}`; }
+    catch (error) { return `Reset command written, but browser credential cleanup failed: ${error.message}`; }
+  }
+  async waitForResetDisconnect(connection) {
+    // Match the desktop app's reboot watchdog: allow firmware to drain ATT,
+    // erase flash and reboot before releasing the browser connection.
+    connection.resetPending = true;
+    const disconnected = await new Promise(resolve => {
+      let timer;
+      const finish = value => {
+        clearTimeout(timer);
+        connection.native.off('disconnect', onDisconnect);
+        resolve(value);
+      };
+      const onDisconnect = () => finish(true);
+      connection.native.on('disconnect', onDisconnect);
+      timer = setTimeout(() => finish(false), 6000);
+      if (!connection.active) finish(true);
+    });
+    await this.disconnect();
+    return disconnected
+      ? 'Device disconnected; reconnect to verify reset.'
+      : 'No device reboot observed within 6 seconds; connection closed. Reconnect to verify reset.';
   }
   async resetDevice() {
     return this.runGattAction('Reset',async()=>{
-      const {entry}=this.requireConnectedEntry();
+      const {entry,connection}=this.requireConnectedEntry();
       await this.writeVendorPayloadWithOptionalAuth([TOPICS.reset]);
-      const cleanupWarning=this.clearCredential(entry.device); await this.disconnect();
-      return {ok:true,state:'idle',message:`Reset sent. Device identity retained. ${cleanupWarning || 'Browser auth cleared.'}`};
+      const cleanupWarning=this.clearCredential(entry.device);
+      this._actionLog('Reset command written. Waiting for device restart…');
+      const outcome=await this.waitForResetDisconnect(connection);
+      return {ok:true,state:'idle',message:`Reset sent. ${cleanupWarning || 'Browser auth cleared.'} ${outcome}`};
     });
   }
   async factoryDevice() {
     return this.runGattAction('Factory reset',async()=>{
-      const {entry}=this.requireConnectedEntry();
+      const {entry,connection}=this.requireConnectedEntry();
       await this.writeVendorPayloadWithOptionalAuth([TOPICS.factoryReset]);
-      const cleanupWarning=this.clearCredential(entry.device);await this.disconnect();
-      return {ok:true,state:'idle',message:`Factory reset sent. Device identity and business data erased. ${cleanupWarning || 'Browser auth cleared.'}`};
+      const cleanupWarning=this.clearCredential(entry.device);
+      this._actionLog('Factory command written. Waiting for device restart…');
+      const outcome=await this.waitForResetDisconnect(connection);
+      return {ok:true,state:'idle',message:`Factory reset sent. ${cleanupWarning || 'Browser auth cleared.'} ${outcome}`};
     });
   }
   async downloadOad(file) {

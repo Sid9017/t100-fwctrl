@@ -16,7 +16,7 @@ test('credentials persist across store instances and match identity after browse
   const fresh=new AuthStore(storage);
   assert.deepEqual(fresh.resolve(device),record);
   assert.equal(fresh.resolve({...device,id:'different-browser-id'}).auth_key,record.auth_key);
-  assert.equal(fresh.resolve({...device,name:'YD-000000000000',id:'unknown'}),null);
+  assert.equal(fresh.resolve({...device,name:'YD-000000000000'}),null);
   fresh.remove(device);assert.deepEqual(fresh.records(),[]);
 });
 test('storage quota failures are surfaced, corrupt JSON is never silently overwritten',()=>{
@@ -33,7 +33,7 @@ test('desktop credential imports are validated atomically and duplicate keys rep
   store.import(JSON.stringify({pub_key:pub,auth_key:'new12345'}));
   assert.equal(store.resolve({...device,id:'other'}).auth_key,'new12345');
   store.save({...record,pub_key:`02${'ac'.repeat(32)}`});
-  assert.equal(store.resolve({...device,name:'YD-02acacacacac'}).pub_key,`02${'ac'.repeat(32)}`);
+  assert.equal(store.resolve(device).pub_key,`02${'ac'.repeat(32)}`);
 });
 function tokenFixture({iat=1000,exp=1300,signatureCorrupt=false}={}) {
   const {privateKey,publicKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
@@ -45,10 +45,23 @@ function tokenFixture({iat=1000,exp=1300,signatureCorrupt=false}={}) {
   if(signatureCorrupt)signature[0]^=1;
   return {token:`${message}.${signature.toString('base64url')}`,name:`YD-${pub.toString('hex').slice(0,12)}`,pub};
 }
-test('admission verification checks P-256 signature, name identity, lifetime and clock skew',async()=>{
-  const valid=tokenFixture();assert.equal((await verifyAdmissionToken(valid.token,valid.name,1100)).pub_key,valid.pub.toString('hex'));
-  await assert.rejects(verifyAdmissionToken(valid.token,'YD-000000000000',1100),/identity/);
-  await assert.rejects(verifyAdmissionToken(valid.token,valid.name,1500),/expired/);
-  const forged=tokenFixture({signatureCorrupt:true});await assert.rejects(verifyAdmissionToken(forged.token,forged.name,1100),/signature/);
-  const long=tokenFixture({exp:2000});await assert.rejects(verifyAdmissionToken(long.token,long.name,1100),/expired/);
+test('admission verification checks P-256 signature, lifetime and clock skew',async()=>{
+  const valid=tokenFixture();assert.equal((await verifyAdmissionToken(valid.token,1100)).pub_key,valid.pub.toString('hex'));
+  await assert.rejects(verifyAdmissionToken(valid.token,1500),/expired/);
+  const forged=tokenFixture({signatureCorrupt:true});await assert.rejects(verifyAdmissionToken(forged.token,1100),/signature/);
+  const long=tokenFixture({exp:2000});await assert.rejects(verifyAdmissionToken(long.token,1100),/expired/);
+});
+
+test('credentials use selected names even when token identity differs, and removal preserves other devices',()=>{
+  const store=new AuthStore(new Storage());
+  const cached={...device,name:'YD-03b93ed7594b'};
+  store.save({...record,name:cached.name});
+  store.save({...record,pub_key:`03${'cd'.repeat(32)}`,name:'YD-03cdcdcdcdcd',deviceId:'another'});
+  assert.equal(store.resolve({...cached,id:'new-browser-id'}).auth_key,record.auth_key);
+  store.save({...record,name:cached.name,pub_key:`02${'ef'.repeat(32)}`,deviceId:'new-browser-id',auth_key:'new12345'});
+  assert.equal(store.records().length,2);
+  assert.equal(store.resolve(cached).auth_key,'new12345');
+  store.remove({...cached,id:'changed-again'});
+  assert.equal(store.resolve(cached),null);
+  assert.equal(store.records().length,1);
 });

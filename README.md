@@ -57,17 +57,18 @@ mouth editor is not exposed here.
 ## Browser credentials
 
 Credentials are stored in this site's `localStorage` under `t100.mfg.auth.v1`.
-Records contain the compressed device public key, eight-character auth code and
-optional browser device ID/name. They survive reloads and browser restarts.
+Records are matched by the selected device name and contain its compressed public
+key, eight-character auth code and browser device ID. Binding reads and verifies
+the token from the connected device without comparing its public key to the
+browser's potentially cached name. Credentials survive reloads and browser restarts.
 Binding is not committed if local storage cannot save and read back the credential.
 Failed emotion uploads keep the credential available for retry.
 
-Open **Device details & credentials** in Scale & Display to manage credentials.
-Use **Import auth JSON** for an existing desktop `.auth` record (`pub_key` and
-`auth_key`) or a browser backup array. Use **Export auth backup** before changing
-the site origin or clearing browser data. Credentials are not sent to a server.
-They are scoped to the current browser profile and origin; clearing site storage
-removes them. Keep exported backups private.
+Reset and Factory remove this device's local credential after the command write
+succeeds, then wait for device disconnection with a six-second reboot watchdog.
+A successful write or disconnection does not prove flash erasure completed;
+reconnect to verify the resulting device state. Credentials are scoped to this
+browser profile and site origin and are never sent to a server.
 
 ## Browser-specific behavior
 
