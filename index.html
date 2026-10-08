@@ -2,50 +2,308 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#040606" />
-    <meta name="description" content="T100 Manufacturing Tools · Bluetooth Device Discovery" />
-    <title>T100 · MFG Web Console</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>T100 Device Studio</title>
+    <link rel="icon" href="data:," />
+    <meta name="description" content="T100 Bluetooth manufacturing console: connect, bind, control and update your device." />
     <link rel="stylesheet" href="./src/styles.css" />
-    <script type="module" src="./src/main.js"></script>
   </head>
   <body>
-    <a class="skip-link" href="#main">Skip to main content</a>
-    <header class="hud">
-      <a class="brand" href="./" aria-label="T100 MFG home"><strong>T100</strong><span>MFG CONSOLE</span><small>WEB</small></a>
-      <div class="hud-status"><span class="led" aria-hidden="true"></span><span id="hud-state">Checking compatibility</span><span class="version">v0.1 / SCAN</span></div>
-    </header>
-    <div class="shell">
-      <aside class="sidebar" aria-label="Current feature">
-        <div class="nav-label">WORKSPACE</div>
-        <div class="nav-current"><span>01</span><strong>Bluetooth Scan</strong><span class="nav-arrow">↗</span></div>
-        <div class="sidebar-note"><span class="eyebrow">T100 / BLE</span><p>Device discovery starts here.</p><p>Scan and select devices in this version. Device controls are coming soon.</p></div>
-        <div class="sidebar-foot">MANUFACTURING TOOLS<br><span>LOCAL BLUETOOTH · ONLINE UI</span></div>
-      </aside>
-      <main id="main">
-        <div class="page-heading"><div><p class="eyebrow">CH–01 / DEVICE DISCOVERY</p><h1>Bluetooth Scan<span class="title-dot">.</span></h1><p class="subtitle">Wake up your T100 and select a nearby device.</p></div><span class="outline-tag">WEB BLUETOOTH</span></div>
-        <section id="compatibility" class="compatibility" aria-labelledby="compat-title"><span class="compat-icon" aria-hidden="true">i</span><div><strong id="compat-title">Checking browser compatibility…</strong><p id="compat-detail">Bluetooth scanning requires a supported browser and an HTTPS connection.</p></div></section>
-        <div class="content-grid">
-          <section class="panel scanner-panel" aria-labelledby="scan-title">
-            <div class="panel-heading"><h2 id="scan-title">Discover Devices</h2><span class="micro">01 / SCAN</span></div>
-            <div id="scan-visual" class="scan-visual" aria-hidden="true"><div class="orbit orbit-outer"></div><div class="orbit orbit-inner"></div><svg viewBox="0 0 40 56"><path d="M19 3v50l15-14L7 14m0 28L34 17 19 3" /></svg><span class="orbit-dot"></span></div>
-            <div class="scan-copy"><h3>Find your T100</h3><p>Turn on Bluetooth and keep your T100 nearby.<br>Click Scan and select a device in the browser dialog.</p></div>
-            <button id="scan" class="primary" type="button" disabled><span aria-hidden="true">＋</span><span id="scan-label">Scan for T100 Devices</span><span aria-hidden="true">↗</span></button>
-            <p id="scan-status" class="scan-status" role="status" aria-live="polite">Checking compatibility…</p>
-            <div class="scan-foot"><span class="led" aria-hidden="true"></span>Only T100 advertising devices are shown</div>
-          </section>
-          <section class="panel devices-panel" aria-labelledby="devices-title">
-            <div class="panel-heading"><h2 id="devices-title">Selected Devices <span id="count" class="count">00</span></h2><button id="clear-devices" class="text-button" disabled>Clear list</button></div>
-            <div id="empty" class="empty"><div class="device-outline" aria-hidden="true"><i></i><span>T100</span><i></i></div><h3>No devices selected</h3><p>Devices selected in the browser dialog<br>will appear here.</p></div>
-            <ul id="devices" class="device-list" aria-label="Devices selected in this session"></ul>
-            <p class="list-note">Selecting a device does not connect or pair it. This list is kept only for the current page session.</p>
-          </section>
+    <div class="app-shell console">
+      <p id="browserSupport" role="status" class="browser-support"></p>
+
+      <header class="console-hud">
+        <button id="homeBrandBtn" class="brand" type="button" title="Connect">
+          <span class="brand-mark">T100</span>
+          <span class="brand-title">DEVICE STUDIO</span>
+        </button>
+
+        <div class="hud-metrics">
+          <div class="hud-chip">
+            <span class="hud-k">LINK</span>
+            <span id="simStateLed" class="state-led"></span>
+            <span id="simStateText" class="hud-v">Idle</span>
+          </div>
+          <div class="hud-chip hud-chip-device">
+            <span class="hud-k">DEV</span>
+            <strong id="simTargetName" class="hud-v">No device</strong>
+          </div>
+          <div class="hud-chip">
+            <span class="hud-k">BAT</span>
+            <div id="simTargetBattery" class="battery-indicator battery-empty" aria-label="Battery unknown">
+              <div class="battery-shell">
+                <div class="battery-fill"></div>
+                <span class="battery-label">--</span>
+              </div>
+              <span class="battery-cap"></span>
+            </div>
+          </div>
+          <div class="hud-chip hud-chip-status">
+            <span class="hud-k">STATUS</span>
+            <div id="simDeviceStatus" class="device-status-box is-empty" title="FEE5 status unavailable">
+              <strong class="device-status-screen">--</strong>
+              <span class="device-status-detail">-- / --</span>
+              <span class="device-status-flags">FLAGS --</span>
+            </div>
+          </div>
         </div>
-        <section class="panel guide" aria-labelledby="guide-title"><div class="panel-heading"><h2 id="guide-title">Before You Start</h2><span class="micro">QUICK CHECK</span></div><ol><li><span>01</span><div><strong>Wake up your device</strong><p>Make sure your T100 is powered on and discoverable.</p></div></li><li><span>02</span><div><strong>Allow Bluetooth access</strong><p>Turn on Bluetooth and allow your browser to access it.</p></div></li><li><span>03</span><div><strong>Select your T100</strong><p>Select a device whose name starts with YD- in the dialog and confirm.</p></div></li></ol></section>
-        <section class="panel log-panel" aria-labelledby="log-title"><div class="panel-heading"><h2 id="log-title"><span class="log-dot" aria-hidden="true"></span>Activity Log</h2><button id="clear-log" class="text-button">Clear log</button></div><ol id="logs" class="logs" aria-label="Activity Log"></ol></section>
-        <footer class="page-footer"><span>T100 MFG / Browser Bluetooth Tools</span><span>Desktop Chrome / Edge · Android Chrome</span></footer>
-        <noscript><p class="compatibility">Enable JavaScript to use Bluetooth scanning.</p></noscript>
-      </main>
+
+        <div class="hud-actions">
+          <button title="Bind, install preset1 emotion, then reboot" id="simBindBtn" class="disconnect-link bind-link" type="button" disabled>BIND</button>
+          <button id="simResetBtn" class="disconnect-link" type="button" disabled>RESET</button>
+          <button id="factoryBtn" class="disconnect-link" type="button" disabled>FACTORY</button>
+          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="true">LOG</button>
+        </div>
+      </header>
+
+      <div class="console-body">
+        <main class="view-host console-stage" id="screenViewport" tabindex="0" aria-label="Device screens. Swipe horizontally to switch screens.">
+          <div id="screenTrack" class="screen-track">
+          <section id="viewConnect" class="view is-active" data-view="connect">
+            <div class="view-inner view-inner-wide connection-layout">
+              <div class="view-header">
+                <div>
+                  <div class="section-kicker">01 / CONNECT</div>
+                  <h2 class="view-title">Device Connect</h2>
+                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                </div>
+              </div>
+
+              <div id="connectBusyHost" class="sim-main-panel connect-picker">
+                <button id="simRefreshScanBtn" class="action-button print" type="button">Select Bluetooth Device</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="viewTest" class="view" data-view="test">
+            <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
+              <div class="view-header">
+                <div>
+                  <div class="section-kicker">01 / CONNECT</div>
+                  <h2 class="view-title">Device Connect</h2>
+                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                </div>
+              </div>
+
+              <div class="sim-main-panel connect-picker">
+                <button data-connect-picker class="action-button print" type="button">Select Bluetooth Device</button>
+              </div>
+            </div>
+            <div class="studio-layout" data-gate-content="connected" hidden>
+        <section class="simulator-pane gate-content" data-gate-content="connected" aria-label="T100 simulator" hidden>
+          <div class="studio-heading"><div><div class="section-kicker">T100 / WEB RUNTIME</div><h1>Device simulator</h1></div><span class="runtime-badge">C → Wasm</span></div>
+          <div class="simulator-card"><div class="simulator-mode-corner"><span class="simulator-wheel-label">mode</span><div id="modeWheel" class="history-wheel mode-wheel" role="listbox" tabindex="0" aria-label="Scale mode"></div><select id="simCoffeeModeSelect" aria-label="Scale mode" hidden>
+                      <option value="3" selected>KCal</option>
+                      <option value="0">Kitchen</option>
+                      <option value="1">Espresso</option>
+                      <option value="2">PourOver</option>
+                    </select></div><div class="simulator-unit-corner"><span class="simulator-wheel-label">unit</span><div id="deviceUnitWheel" class="history-wheel device-unit-wheel" role="listbox" tabindex="0" aria-label="Device unit"></div><input id="deviceUnitValue" type="hidden" value="0" /></div><iframe id="runtimeFrame" src="./assets/runtime/index.html" title="T100 Web Runtime simulator"></iframe></div>
+          <p id="previewSource" class="preview-source" role="status">Local simulation · no device connected</p>
+        </section>
+            <section class="view-inner operation-pane" id="unifiedControls" aria-label="Device operations">
+              <div class="stack gate-content" data-gate-content="connected">
+
+                <div class="sim-control-card coffee-recipe-card compact-row">
+                  <div class="coffee-recipe-head">
+                    <div>
+                      <div class="field-label">OPERATION</div>
+                      <p class="coffee-recipe-hint">Mode applies on the next scale entry.</p>
+                    </div>
+                  </div>
+                  <div id="simContainerFields">
+                    <label class="field"><span>Container weight (g)</span><input id="simContainerWeight" type="number" min="0" max="1999.9" step="0.1" value="100" /></label>
+                    <div class="actions"><button id="simContainerSet" type="button">Set container weight</button><button id="simContainerClear" type="button">Clear container weight</button></div>
+                    <p class="coffee-recipe-hint">KCal only. Tare keeps the container setting.</p>
+                    <p id="simContainerStatus" role="status"></p>
+                  </div>
+                  <div id="simCoffeeRecipeFields" class="coffee-recipe-fields" hidden>
+                    <div class="coffee-slider-grid">
+                      <label class="field coffee-slider-field">
+                        <span id="simCoffeeBaseLabel">Coffee grounds</span>
+                        <input id="simCoffeeBaseRange" type="range" min="5" max="60" step="0.1" value="15" />
+                        <span class="coffee-slider-value">
+                          <input id="simCoffeeBaseInput" type="number" min="5" max="60" step="0.1" value="15" />
+                          <span id="simCoffeeBaseUnit">g</span>
+                        </span>
+                      </label>
+                      <label class="field coffee-slider-field">
+                        <span id="simCoffeeRatioLabel">Water : grounds</span>
+                        <input id="simCoffeeRatioRange" type="range" min="10" max="20" step="0.1" value="16" />
+                        <span class="coffee-slider-value"><output id="simCoffeeRatioValue">16.0</output> : 1</span>
+                      </label>
+                    </div>
+                    <div class="coffee-targets">
+                      <div>
+                        <span id="simCoffeePrimaryName">Grounds</span>
+                        <strong id="simCoffeePrimaryTarget">15.0 g</strong>
+                      </div>
+                      <div>
+                        <span>Water</span>
+                        <strong id="simCoffeeWaterTarget">240.0 g</strong>
+                      </div>
+                    </div>
+                    <div class="coffee-progress" aria-label="Coffee recipe progress">
+                      <div id="simCoffeePrimaryProgress" class="coffee-progress-segment is-primary">
+                        <span class="coffee-progress-fill"></span>
+                      </div>
+                      <div id="simCoffeeWaterProgress" class="coffee-progress-segment is-water">
+                        <span class="coffee-progress-fill"></span>
+                      </div>
+                    </div>
+                    <div class="coffee-recipe-actions">
+                      <button id="simCoffeeApplyBtn" class="action-button" type="button">Apply recipe</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="sim-control-card compact-row">
+                  <div class="field-label">Countdown</div>
+                  <div class="sim-kcal-fields">
+                    <label class="field sim-kcal-field">
+                      <input
+                        id="simCurrentKcalInput"
+                        type="number"
+                        min="-9999"
+                        max="9999"
+                        step="1"
+                        inputmode="numeric"
+                        placeholder="Remaining"
+                        aria-label="Remaining kcal (negative means over target)"
+                      />
+                    </label>
+                    <label class="field sim-kcal-field">
+                      <input
+                        id="simTargetKcalInput"
+                        type="number"
+                        min="0"
+                        max="9999"
+                        step="1"
+                        inputmode="numeric"
+                        placeholder="Target"
+                        aria-label="Target value"
+                      />
+                    </label>
+                  </div>
+                  <button id="simKcalUpdateBtn" class="action-button" type="button">Update countdown</button>
+                </div>
+
+                <div class="sim-control-card compact-row">
+                  <div class="field-label">Notify bubble</div>
+                  <div class="sim-notify-fields">
+                    <label class="field sim-notify-field sim-notify-color-field">
+                      <span>Color</span>
+                      <input id="simNotifyColorInput" type="color" value="#33ff99" aria-label="Bubble color" />
+                    </label>
+                    <label class="field sim-notify-field">
+                      <span>Text</span>
+                      <input
+                        id="simNotifyTextInput"
+                        type="text"
+                        maxlength="64"
+                        spellcheck="false"
+                        placeholder="Hello"
+                        aria-label="Notify text"
+                      />
+                    </label>
+                  </div>
+                  <button id="simNotifyBtn" class="action-button" type="button">Show notify</button>
+                </div>
+
+                <div class="sim-control-card compact-row" id="historyCard">
+                  <div class="field-label">Kcal history</div>
+                  <fieldset id="historyFields">
+                    <div class="history-image-wheels">
+                      <div class="history-wheel-field"><span id="historyImageLabel1">Image 1</span><div class="history-wheel-frame"><div id="historyImageWheel1" class="history-wheel" role="listbox" tabindex="0" aria-labelledby="historyImageLabel1"></div></div><input type="hidden" id="simHistPhoto1" value="" /></div>
+                      <div class="history-wheel-field"><span id="historyImageLabel2">Image 2</span><div class="history-wheel-frame"><div id="historyImageWheel2" class="history-wheel" role="listbox" tabindex="0" aria-labelledby="historyImageLabel2"></div></div><input type="hidden" id="simHistPhoto2" value="" /></div>
+                      <div class="history-wheel-field"><span id="historyImageLabel3">Image 3</span><div class="history-wheel-frame"><div id="historyImageWheel3" class="history-wheel" role="listbox" tabindex="0" aria-labelledby="historyImageLabel3"></div></div><input type="hidden" id="simHistPhoto3" value="" /></div>
+                    </div>
+                    <div class="history-value-row">
+                      <label class="field"><span>Kcal</span><input id="simHistKcalInput" type="number" min="0" max="4294967295" step="1" inputmode="numeric" placeholder="kcal" /></label>
+                      <label class="field"><span>Weight</span><input id="simHistWeightInput" type="number" step="1" inputmode="numeric" placeholder="Weight" /></label>
+                      <div class="history-wheel-field"><span id="historyUnitLabel">Unit</span><div class="history-wheel-frame unit-wheel-frame"><div id="historyUnitWheel" class="history-wheel unit-wheel" role="listbox" tabindex="0" aria-labelledby="historyUnitLabel"></div></div><input type="hidden" id="simHistUnitSelect" value="g" /></div>
+                    </div>
+                    <div class="history-rating" role="radiogroup" aria-label="Rating">
+                      <span>Rating</span>
+                      <button type="button" role="radio" data-history-rating="1" aria-label="1 out of 5" aria-checked="false"></button>
+                      <button type="button" role="radio" data-history-rating="2" aria-label="2 out of 5" aria-checked="false"></button>
+                      <button type="button" role="radio" data-history-rating="3" aria-label="3 out of 5" aria-checked="false"></button>
+                      <button type="button" role="radio" data-history-rating="4" aria-label="4 out of 5" aria-checked="true"></button>
+                      <button type="button" role="radio" data-history-rating="5" aria-label="5 out of 5" aria-checked="false"></button>
+                      <input type="hidden" id="simHistRating" value="4" />
+                    </div>
+                  </fieldset>
+                  <button id="simAppendKcalBtn" class="action-button" type="button">Append kcal</button>
+                </div>
+
+
+              </div>
+            </section>
+            </div>
+          </section>
+
+          <section id="viewOad" class="view" data-view="oad">
+            <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
+              <div class="view-header">
+                <div>
+                  <div class="section-kicker">01 / CONNECT</div>
+                  <h2 class="view-title">Device Connect</h2>
+                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                </div>
+              </div>
+
+              <div class="sim-main-panel connect-picker">
+                <button data-connect-picker class="action-button print" type="button">Select Bluetooth Device</button>
+              </div>
+            </div>
+            <div class="view-inner" data-gate-content="connected" hidden>
+              <div class="view-header">
+                <div>
+                  <div class="section-kicker">03 / FIRMWARE</div>
+                  <h2 class="view-title">OAD Update</h2>
+                  <p class="view-subtitle">Select OAD firmware and upgrade over BLE</p>
+                </div>
+              </div>
+
+
+              <div class="stack gate-content" data-gate-content="connected">
+                <div class="sim-control-card sim-firmware-card">
+                  <div class="field-label">OAD firmware</div>
+                  <button id="simFirmwareBtn" class="secondary-button file-picker-button" type="button">
+                    Select OAD firmware
+                  </button>
+                  <div class="sim-oad-progress">
+                    <div class="progress-head sim-oad-progress-head">
+                      <span>OAD progress</span>
+                      <code id="simOadProgressText">0.0%</code>
+                    </div>
+                    <div id="simOadProgressTrack" class="progress-track sim-oad-progress-track">
+                      <div id="simOadProgressBar" class="progress-fill"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="inline-actions">
+                  <button id="simOadBtn" class="action-button print" type="button">Start OAD</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          </div>
+        </main>
+      </div>
+
+      <aside id="logDrawer" class="console-log is-open" aria-hidden="false">
+        <div class="log-drawer-header">
+          <div class="field-label">EVENT LOG</div>
+          <div class="log-drawer-actions">
+            <button id="simClearLogBtn" class="log-clear" type="button">CLR</button>
+            <button id="logDrawerClose" class="ghost-btn" type="button">HIDE</button>
+          </div>
+        </div>
+        <div id="simLog" class="event-log sim-event-log"></div>
+      </aside>
     </div>
+
+    <script type="module" src="./src/main.js"></script>
   </body>
 </html>

@@ -1,57 +1,159 @@
-# t100-fwctrl
+# T100 MFG Web Console
 
-独立、零第三方运行时依赖的浏览器工具。沿用 mfg_app 深色/绿色控制台风格，适配手机竖屏和桌面。当前仅实现 Web Bluetooth 设备扫描与选择，不连接 GATT、不绑定、不读写固件，也不保存认证数据。
+Browser port of the Bluetooth workflows in `bk-hw-temp/projects/t100/mfg_app`.
+The interface is English and runs as a static website. Selecting a device in the
+browser picker immediately connects it; no second Connect click is required.
 
-## 本地运行
+## Run locally
 
-Node.js 22 或更高版本，在仓库根目录执行：
+Requires Node.js 22 or later:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-打开 http://127.0.0.1:8766 。使用 `PORT=其他端口 npm run dev` 可改端口。
+Open http://127.0.0.1:8766. Set `PORT=8767` to choose another port. The development
+server builds the application at startup; restart it after source changes.
 
 ```sh
 npm test
 npm run build
 npm run preview
+npm run test:browser
 ```
 
-preview 使用同一端口，启动前先停止 dev。构建仅复制 index.html 和 src 到 dist；不会部署仓库、认证文件或 Electron 依赖。
+Browser tests use an installed Google Chrome and a mock Bluetooth peripheral.
+They never connect to or modify physical hardware. Playwright starts a local
+server on port 8767 unless one is already running there.
 
-## Netlify
+## Bluetooth features
 
-连接 t100-fwctrl Git 仓库，选择要部署的分支：
+- T100 manufacturer-data filtering, direct connection after selection,
+  reconnect through the browser picker, explicit disconnect, and connection-loss handling.
+- Device firmware and clock readout; automatic CTS time synchronization on connection.
+- Live battery, FEE1 weight and FEE5 screen/phase/mode/flags notifications.
+- Signed P-256 binding token verification, auth persistence before bind commit,
+  EMO2 emotion upload, CRC-bound FEE4 theme selection and device restart.
+  Retrying an already bound device skips bind commit and resumes emotion installation.
+- Tare, g/oz units, scale navigation, KCal/Kitchen/Espresso/PourOver modes,
+  coffee recipe preview/persistence and target progress.
+- KCal container weight with distinct zero and clear operations.
+- Left/right white lights and shared brightness.
+- Countdown target/remaining values, including negative remaining values.
+- Notification text rasterization and bitmap BEGIN/CHUNK/COMMIT upload.
+- KCal history records, rating, UUID/timestamp and up to three food photos,
+  using the original RGB565 + alpha framing.
+- OAD firmware file selection, ChunkX upload, retransmission and progress.
+  Success requires a device acknowledgement; a disconnect alone is not success.
+- Authenticated reset and public factory reset, with local credential cleanup
+  after a successful command write.
 
-| 配置 | 值 |
-| --- | --- |
-| Base directory | 留空（仓库根目录） |
-| Package directory | 留空（与 Base 相同） |
-| Build command | `npm run build` |
-| Publish directory | `dist`（相对于 Base） |
+Serial flashing is deferred by request. NFC pull is not exposed because the
+T100 firmware and original application disable that feature. The current original
+application provisions complete emotion packs through Bind; its dormant legacy
+mouth editor is not exposed here.
 
-根目录 netlify.toml 固定 Node 22、构建入口和响应头。无需 Functions、环境密钥或后端。正式使用固定 HTTPS 域名；后续认证存储将按网站来源隔离。
+## Browser credentials
 
-## 扫描行为与兼容性
+Credentials are stored in this site's `localStorage` under `t100.mfg.auth.v1`.
+Records contain the compressed device public key, eight-character auth code and
+optional browser device ID/name. They survive reloads and browser restarts.
+Binding is not committed if local storage cannot save and read back the credential.
+Failed emotion uploads keep the credential available for retry.
 
-- 点击按钮直接调用 `navigator.bluetooth.requestDevice()`，由浏览器原生弹窗扫描/选择。网页只获得用户选中的设备，不能据此列出所有周边设备或 RSSI。
-- 单个组合过滤条件：名称前缀 `YD-`；company `0x6000`；Manufacturer Data subtype `0x50`；product `0x01`。version 字节不限制，兼容 v1/v2。返回后再次校验 `YD-` + 12 位小写十六进制名称。
-- 不降级为仅名称扫描，避免选入同名 H300。需要支持 manufacturerData filter 的现代浏览器。
-- 支持桌面 Chrome / Edge 和 Android Chrome；Linux 取决于浏览器/系统配置。iOS / iPadOS 常规浏览器及 Safari、Firefox 不支持时显示明确提示。
-- 需要 HTTPS；本机 localhost/127.0.0.1 可调试。手机访问电脑 HTTP 局域网地址不满足安全上下文，请使用 Netlify HTTPS 预览。浏览器还需系统蓝牙权限，设备需处于广播状态。
-- 本次已选列表只存在内存中。清空列表不会撤销浏览器设备权限；撤销权限请在浏览器网站设置中操作。选择不代表连接或绑定。
+Open **Device details & credentials** in Scale & Display to manage credentials.
+Use **Import auth JSON** for an existing desktop `.auth` record (`pub_key` and
+`auth_key`) or a browser backup array. Use **Export auth backup** before changing
+the site origin or clearing browser data. Credentials are not sent to a server.
+They are scoped to the current browser profile and origin; clearing site storage
+removes them. Keep exported backups private.
 
-## 验证
+## Browser-specific behavior
 
-`npm test` 覆盖T100 广播过滤及其他产品排除、用户手势同步调用、重复请求/选择、取消与错误恢复、设备身份校验。实际蓝牙仍需在支持的浏览器与真实 T100 上验证：
+Use desktop Chrome / Edge or Android Chrome over HTTPS. Localhost is allowed for
+local development; a phone opening a computer's HTTP LAN address is not a secure
+context. Bluetooth must be enabled and browser/system access allowed.
 
-1. 唤醒 T100，扫描后弹窗能看到设备；H300 不出现。
-2. 选择后列表显示名称和浏览器设备 ID，状态保持“未连接”。
-3. 再次选择同一设备不会重复；取消后可重新扫描。
-4. Android 竖屏下操作按钮和设备 ID 不溢出；iPhone 显示兼容性提示。
+The browser picker does not expose advertisement bytes, MAC addresses or RSSI.
+Scanning always includes all T100 devices: manufacturer subtype `P` and product 1,
+with no version or Shell ID restriction. Devices from other product families are
+excluded. Binding installs the bundled preset1 emotion pack without a Shell ID
+selection or filter.
 
-入口：`src/main.js`；扫描逻辑：`src/bluetooth.js`；样式：`src/styles.css`。该仓库独立运行，不依赖固件仓库或桌面端源码。后续增加功能时，在本仓库逐步引入所需协议模块。
+All GATT calls are serialized. Timeouts disconnect the old session so unfinished
+work cannot continue writing into a new session. The original upload packet
+formats, CRCs and pacing are retained. Web Bluetooth does not expose ATT MTU;
+the original 512-byte fallback is used for ChunkX/upload sizing. Large writes and
+actual flash behavior still need verification on each target browser/platform and
+physical T100 firmware version.
 
-参考：[Web Bluetooth](https://developer.chrome.com/docs/capabilities/bluetooth)、[Netlify monorepos](https://docs.netlify.com/build/configure-builds/monorepos/)。
+## Deployment
+
+Netlify uses the repository root, `npm run build`, and publish directory `dist`.
+The build bundles browser code and copies only the UI and public food/emotion
+assets; tests, source tooling and credential storage are not published. No backend
+or build-time credentials are needed.
+
+## Source and verification
+
+The migration references `bk-hw-temp` revision `330e5df0` and the local
+`projects/t100/mfg_app` implementation. Protocol modules and their regression
+vectors live in `src/vendor`; browser GATT/auth/workflow adapters are in `src/web`.
+`src/renderer.js` retains the original interactive controls and renderer behavior.
+The preset1 binary is the firmware's validated `fw_assets/emotion/default_v2.bin`.
+
+`npm test` covers the original wire formats plus browser auth validation, signed
+tokens, picker service grants, GATT serialization and abort behavior. Browser
+integration tests exercise selection/connection, notifications, binding retries,
+failed storage, commands, food and notification uploads, OAD, imports and reset.
+Actual Bluetooth communication and firmware effects require a real-device check.
+
+## T100 Web Runtime simulator
+
+The Device Studio embeds the original T100 C/Wasm renderer from
+`bk-hw-temp/projects/t100/web_runtime`. It preserves the device outline, RGB565
+screen and P16/P17 keys. Weight is entered in the controls; the weighing surface
+has no press interaction.
+The second screen shows the simulator only after connecting a Bluetooth device.
+The always-expanded operations panel operates the connected device directly.
+The mode wheel at the simulator’s upper-left uses the original Wasm mode titles
+and switches the connected device between KCal, Kitchen, Espresso and PourOver.
+The top bar has no disconnect button. The controls contain recipe settings, container weight, countdown,
+notifications and kcal history. The Wasm display is the only weight readout;
+preview-only inputs, target selection, device details and light controls are removed.
+
+The simulator always follows device status, using FEE5 to select the Wasm scene and FEE1 to update
+weight without changing that scene. Idle stays Idle when weight arrives.
+Scale mode/targets and sleep/wake follow device status. Countdown and history
+show status labels because FEE5 omits their content. Notifications use the native
+Wasm PWM transition with an empty preview bubble when no bitmap is available.
+Unbound devices show the original runtime's sample pairing code instead of weight.
+The simulator is a local rendered preview, not live screen mirroring.
+
+The prebuilt runtime and its source provenance are in `assets/runtime/README.txt`.
+Hosting must serve `.wasm` files and allow `wasm-unsafe-eval` plus same-origin
+frames in CSP; the local server and Netlify configuration include these settings.
+
+The app uses three horizontal screens: **Connect**, **Scale & Display** (the
+Wasm simulator and device controls), and **OAD**. Selecting a Bluetooth device
+connects immediately; a successful connection slides to the second screen.
+Switch with a horizontal swipe or mouse drag on the page surface, or a
+horizontal trackpad gesture. There are no navigation tabs. The focused screen
+container also supports Left/Right/Home/End keys. Sliders and simulator gestures
+keep their own behavior. Each screen scrolls vertically and retains its state.
+
+Custom bind/NFC service permissions include the firmware's mixed-endian UUID
+forms, matching the desktop application's UUID handling. Connection state uses
+the FEE5 BOUND flag when available; missing bind-service discovery alone does not
+prove a device is bound. After updating an older page, disconnect and select the
+device again so the browser grants the additional service UUIDs.
+
+Kcal history uses three independent image wheels (including No image), followed
+by kcal and weight fields, a g/oz unit wheel, and a 1–5 star rating. Wheel choices
+support vertical scrolling, clicks and Up/Down/Home/End keys. Selected images
+retain their slot order when submitted.
+
+Notification entry and exit match the firmware PWM model: freeze pixels during
+150 ms backlight ramps, swap the frame at black, and allow 40 ms to settle before
+fading in. The status bridge waits for this lifecycle instead of overriding it.

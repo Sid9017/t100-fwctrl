@@ -4,3 +4,5 @@ dist/
 .auth/
 .env*
 !.env.example
+test-results/
+playwright-report/

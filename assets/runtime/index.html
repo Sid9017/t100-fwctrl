@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>T100 · Wasm WebRuntime</title>
+  <link rel="stylesheet" href="style.css?v=20260924-weigh-surface">
+</head>
+<body>
+  <header hidden><div><small>WEBRUNTIME / T100</small><h1>T100 simulator</h1></div><p>80 × 320 native RGB565 · C → Wasm</p></header>
+  <main>
+    <section class="preview" aria-label="Device preview">
+      <div class="device">
+        <svg class="chassis" viewBox="0 0 680 270" aria-hidden="true">
+          <defs>
+            <linearGradient id="rearFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#686d6b" stop-opacity="0" />
+              <stop offset="0.64" stop-color="#686d6b" stop-opacity="0.28" />
+              <stop offset="1" stop-color="#444a48" stop-opacity="0.75" />
+            </linearGradient>
+            <linearGradient id="frontFade" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#444a48" stop-opacity="0.52" />
+              <stop offset="1" stop-color="#444a48" stop-opacity="0.88" />
+            </linearGradient>
+          </defs>
+          <path class="rear-line" d="M39 2 C37 23 34 48 29 79 M641 2 C643 23 646 48 651 79" />
+          <path class="top-seam" d="M29 79 C27 96 72 116 120 117 L560 117 C608 116 653 96 651 79" />
+          <path class="front-line" d="M29 79 C24 116 21 199 32 229 C43 251 74 260 116 260 L564 260 C606 260 637 251 648 229 C659 199 656 116 651 79" />
+        </svg>
+        <div class="light-bar">
+          <button id="leftLed" class="led left-led" aria-label="Left key P16" title="Left key P16"></button>
+          <canvas id="panel" width="320" height="80" aria-label="T100 display"></canvas>
+          <div id="leftDrawer" class="drawer left-drawer" aria-hidden="true"><img alt=""></div>
+          <div id="rightDrawer" class="drawer right-drawer" aria-hidden="true"><img alt=""></div>
+          <button id="rightLed" class="led right-led" aria-label="Right key P17" title="Right key P17"></button>
+        </div>
+      </div>
+      <div class="status"><span id="sceneText">Starting</span><span id="runtimeText">Loading Wasm</span></div>
+    </section>
+    <details class="controls" hidden><summary>Local simulation controls</summary>
+      <div class="tabs"><button class="selected" data-tab="scale">Scale</button><button data-tab="kcal">Calories</button><button data-tab="light">Lights & notify</button></div>
+      <div class="tab selected" id="tab-scale">
+        <label>Scale mode<select id="mode"><option value="0">KCal</option><option value="1">Kitchen</option><option value="2">Espresso</option><option value="3">PourOver</option></select></label>
+        <label>Reference screen<select id="referencePage">
+          <option value="-1">Follow simulation</option>
+          <option value="0">KCal · Mode title</option>
+          <option value="1">KCal · Clear/Tare/Reset guide</option>
+          <option value="2">KCal · CNTR/TOTAL · 0.0 g</option>
+          <option value="3">KCal · 1999.9 g</option>
+          <option value="4">KCal · Over-Loaded</option>
+          <option value="5">KCal · OVLD · 1999.9 g</option>
+          <option value="6">Kitchen · Mode title</option>
+          <option value="7">Kitchen · Add/Clear/Tare guide</option>
+          <option value="8">Kitchen · ACCM/TOTAL · 0.0 g</option>
+          <option value="9">Kitchen · 1999.9 g</option>
+          <option value="10">Kitchen · Over-Loaded</option>
+          <option value="11">Kitchen · OVLD · 1999.9 g</option>
+          <option value="12">Espresso · Mode title</option>
+          <option value="13">Espresso · ST/SP/Tare guide</option>
+          <option value="14">Espresso · TIME/FLOW · 0.0 g</option>
+          <option value="15">Espresso · 999.9 g</option>
+          <option value="16">PourOver · Mode title</option>
+          <option value="17">PourOver · Record / tareguide</option>
+          <option value="18">PourOver · Record Coffee Grounds · 0.0 g</option>
+          <option value="19">PourOver · 99.9 g</option>
+          <option value="20">PourOver · ST/SP/T-RST keyguide</option>
+          <option value="21">PourOver · TIME/FLOW · 0.0 g</option>
+          <option value="22">PourOver · 9′59″ / 999.9 g</option>
+        </select></label>
+        <label>Simulated weight (g)<input id="weight" type="number" value="0" step="0.1" min="-5000" max="5000"></label>
+        <label>Hold rate (g/s)<input id="weighRate" type="number" min="1" max="2000" step="10" value="100"></label>
+        <div id="containerControls">
+          <label>Container weight (g)<input id="containerWeight" type="number" min="0" max="1999.9" step="0.1" value="100"></label>
+          <div class="actions"><button id="setContainer">Set container weight</button><button id="clearContainer">Clear container weight</button></div>
+          <p id="containerStatus" role="status">No container weight set</p>
+        </div>
+        <label>Unit<select id="unit"><option value="0">g</option><option value="1">oz</option></select></label>
+        <div class="row"><label>Grounds / espresso target (g)<input id="primaryTarget" type="number" value="15" min="0" max="1999.9" step="0.1"></label><label>Water target (g)<input id="waterTarget" type="number" value="240" min="0" max="1999.9" step="0.1"></label></div>
+        <div class="actions"><button id="openScale">Open scale</button><button id="tare">Tare</button><button id="reset">Reset simulation</button></div>
+      </div>
+      <div class="tab" id="tab-kcal">
+        <div class="row"><label>Remaining kcal (negative = over target)<input id="currentKcal" type="number" value="520" min="-9999" max="9999"></label><label>Target (kcal)<input id="targetKcal" type="number" value="1200" min="1"></label></div>
+        <button id="setKcal">Update countdown</button>
+        <h2>Add kcal history</h2>
+        <label>Photo 1<select id="histFood"><option value="0">No image</option><option value="1">Banana</option><option value="2">Sundae</option><option value="3">Salad</option><option value="4">Drink</option></select></label>
+        <label>Photo 2<select id="histFood2"><option value="0">No image</option><option value="1">Banana</option><option value="2">Sundae</option><option value="3">Salad</option><option value="4">Drink</option></select></label>
+        <label>Photo 3<select id="histFood3"><option value="0">No image</option><option value="1">Banana</option><option value="2">Sundae</option><option value="3">Salad</option><option value="4">Drink</option></select></label>
+        <div class="row"><label>Rating<select id="histRating"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select></label></div>
+        <div class="row"><label>Energy (kcal)<input id="histKcal" type="number" value="95" min="0"></label><label>Weight (g)<input id="histWeight" type="number" value="120" min="0" step="0.1"></label></div>
+        <button id="addHist">Add history</button>
+      </div>
+      <div class="tab" id="tab-light">
+        <label class="check"><input id="leftOn" type="checkbox" checked> Left light</label>
+        <label class="check"><input id="rightOn" type="checkbox" checked> Right light</label>
+        <label>Brightness <output id="brightnessValue">100%</output><input id="brightness" type="range" min="0" max="100" value="100"></label>
+        <h2>Battery indication</h2>
+        <label>Battery (%)<input id="batteryLevel" type="number" min="0" max="100" value="75"></label>
+        <div class="actions"><button id="batteryPlug">Plug in</button><button id="batteryUnplug">Unplug</button><button id="batteryFull">Fully charged</button></div>
+        <button id="batteryIdle">Return to Idle</button>
+        <h2>Idle mouth theme</h2>
+        <label>Load mouth0 raw<input id="mouthFile" type="file" accept=".raw,application/octet-stream"></label>
+        <p id="mouthStatus" class="hint">Accepts 60 × 30 grayscale or 225-byte 1-bit raw</p>
+        <h2>Boot</h2><button id="previewBoot">Preview logo → pairing code</button>
+        <h2>Notification</h2><label>Text (English preview)<input id="notice" type="text" maxlength="24" value="HELLO T100"></label>
+        <button id="sendNotice">Show notification</button>
+      </div>
+      <p class="scope">These controls affect only the local simulator. Use the Bluetooth panel to operate a physical device.</p>
+    </details>
+  </main>
+  <script src="app.js?v=20261004-latest-figma"></script>
+</body>
+</html>
