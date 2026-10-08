@@ -2186,3 +2186,31 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible { outline:2px 
 @media(min-width:1420px) { #viewTest .studio-layout { grid-template-columns:minmax(360px,1fr) minmax(740px,1.5fr); } }
 @media(min-width:769px) and (max-width:1419px) { #viewTest .studio-layout { grid-template-columns:minmax(0,1fr); max-width:850px; } }
 #unifiedControls .compact-row > .field-label { margin-bottom:0; }
+
+/* One-row mobile header; secondary commands live in the native disclosure. */
+.device-actions-menu > summary { display:none; }
+.device-actions-content { display:flex; gap:8px; }
+@media(max-width:768px) {
+  .console-hud { flex-wrap:nowrap; min-height:60px; padding:8px 12px; gap:8px; }
+  .console-hud .brand { flex:none; margin:0; }
+  .console-hud .brand-mark { font-size:22px; }
+  .console-hud .brand-title { display:none; }
+  .hud-metrics { flex:1; flex-wrap:nowrap; justify-content:flex-start; margin:0; gap:8px; min-width:0; }
+  .hud-chip { border:0; padding:0; gap:5px; }
+  .hud-chip .hud-k,.hud-chip-status { display:none; }
+  .hud-chip-device { flex:1; min-width:0; max-width:none; }
+  .hud-v { font-size:11px; }
+  .state-led { width:6px; height:6px; flex:none; }
+  .hud-actions { width:auto; flex:none; flex-wrap:nowrap; margin:0; gap:4px; }
+  .hud-actions button,.device-actions-menu > summary { min-height:44px; padding:6px; font-size:10px; }
+  .hud-actions button:last-child { margin:0; }
+  .device-actions-menu { position:relative; }
+  .device-actions-menu > summary { display:flex; align-items:center; justify-content:center; list-style:none; cursor:pointer; border:1px solid var(--border); border-radius:8px; color:var(--label); font-weight:600; }
+  .device-actions-menu > summary::-webkit-details-marker { display:none; }
+  .device-actions-menu:not(:has(button.visible)) { display:none; }
+  .device-actions-menu[open] .device-actions-content { position:absolute; right:0; top:calc(100% + 8px); width:150px; padding:8px; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:0 8px 24px #26352e20; z-index:3; }
+  .device-actions-content button { width:100%; }
+  .console-hud { z-index:2!important; }
+  .browser-support:not(.unsupported) { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; padding-block:5px; }
+}
+.device-actions-menu > summary:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }

@@ -49,10 +49,15 @@
         </div>
 
         <div class="hud-actions">
+          <details id="deviceActionsMenu" class="device-actions-menu" open>
+            <summary aria-label="Device actions">Actions</summary>
+            <div class="device-actions-content">
           <button title="Bind, install preset1 emotion, then reboot" id="simBindBtn" class="disconnect-link bind-link" type="button" disabled>BIND</button>
           <button id="simResetBtn" class="disconnect-link" type="button" disabled>RESET</button>
           <button id="factoryBtn" class="disconnect-link" type="button" disabled>FACTORY</button>
-          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="true">Event log</button>
+            </div>
+          </details>
+          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="false">LOG·OFF</button>
         </div>
       </header>
 
@@ -301,7 +306,7 @@
         </main>
       </div>
 
-      <aside id="logDrawer" class="console-log is-open" aria-hidden="false">
+      <aside id="logDrawer" class="console-log" aria-hidden="true">
         <div class="log-drawer-header">
           <div class="field-label">EVENT LOG</div>
           <div class="log-drawer-actions">

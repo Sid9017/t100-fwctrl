@@ -523,3 +523,27 @@ for (const [button,message] of [['#simResetBtn','Reset sent'],['#factoryBtn','Fa
     expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('t100.mfg.auth.v1')))).toEqual([]);
   });
 }
+
+test('mobile header stays on one row, exposes device actions and starts with log off', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockBluetooth(page);
+  await page.goto('/');
+  await expect(page.locator('#logDrawerToggle')).toHaveAttribute('aria-expanded', 'false');
+  await expect(page.locator('#logDrawer')).toBeHidden();
+  await page.getByRole('button', { name: 'Select Bluetooth Device' }).click();
+  await expect(page.locator('#simStateText')).toHaveText('Connected');
+  const header = await page.locator('.console-hud').evaluate(el => {
+    const boxes = [...el.children].map(child => child.getBoundingClientRect());
+    return { centers: boxes.map(box => box.y + box.height / 2), width: el.clientWidth, scrollWidth: el.scrollWidth };
+  });
+  expect(Math.max(...header.centers) - Math.min(...header.centers)).toBeLessThan(2);
+  expect(header.scrollWidth).toBeLessThanOrEqual(header.width);
+  await page.getByText('Actions', { exact: true }).click();
+  await expect(page.locator('#simResetBtn')).toBeVisible();
+  await page.getByText('Actions', { exact: true }).click();
+  await expect(page.locator('#simResetBtn')).toBeHidden();
+  await page.locator('#logDrawerToggle').click();
+  await expect(page.locator('#logDrawer')).toBeVisible();
+  await page.locator('#logDrawerToggle').click();
+  await page.screenshot({ path: '/tmp/t100-mobile-header.png' });
+});

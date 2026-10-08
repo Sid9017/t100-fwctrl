@@ -1378,7 +1378,7 @@ async function boot() {
     clearSelectedDevice();
   }
   showView('connect');
-  setLogDrawerOpen(true);
+  setLogDrawerOpen(false);
   await loadHistFoodImages();
 
 }

@@ -89,3 +89,13 @@ syncPickers();
 const { mountModeWheel, mountUnitWheel } = await import('./web/mode-wheel.js');
 await mountModeWheel();
 mountUnitWheel();
+
+// Keep secondary device commands within one compact mobile header menu.
+const deviceActionsMenu = document.getElementById('deviceActionsMenu');
+const compactHeader = window.matchMedia('(max-width: 768px)');
+const syncDeviceActionsMenu = () => { deviceActionsMenu.open = !compactHeader.matches; };
+compactHeader.addEventListener('change', syncDeviceActionsMenu);
+syncDeviceActionsMenu();
+deviceActionsMenu.addEventListener('click', event => {
+  if (compactHeader.matches && event.target.closest('button')) deviceActionsMenu.open = false;
+});
