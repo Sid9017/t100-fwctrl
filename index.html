@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#040606" />
+    <meta name="description" content="T100 Manufacturing Tools · Bluetooth Device Discovery" />
+    <title>T100 · MFG Web Console</title>
+    <link rel="stylesheet" href="./src/styles.css" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to main content</a>
+    <header class="hud">
+      <a class="brand" href="./" aria-label="T100 MFG home"><strong>T100</strong><span>MFG CONSOLE</span><small>WEB</small></a>
+      <div class="hud-status"><span class="led" aria-hidden="true"></span><span id="hud-state">Checking compatibility</span><span class="version">v0.1 / SCAN</span></div>
+    </header>
+    <div class="shell">
+      <aside class="sidebar" aria-label="Current feature">
+        <div class="nav-label">WORKSPACE</div>
+        <div class="nav-current"><span>01</span><strong>Bluetooth Scan</strong><span class="nav-arrow">↗</span></div>
+        <div class="sidebar-note"><span class="eyebrow">T100 / BLE</span><p>Device discovery starts here.</p><p>Scan and select devices in this version. Device controls are coming soon.</p></div>
+        <div class="sidebar-foot">MANUFACTURING TOOLS<br><span>LOCAL BLUETOOTH · ONLINE UI</span></div>
+      </aside>
+      <main id="main">
+        <div class="page-heading"><div><p class="eyebrow">CH–01 / DEVICE DISCOVERY</p><h1>Bluetooth Scan<span class="title-dot">.</span></h1><p class="subtitle">Wake up your T100 and select a nearby device.</p></div><span class="outline-tag">WEB BLUETOOTH</span></div>
+        <section id="compatibility" class="compatibility" aria-labelledby="compat-title"><span class="compat-icon" aria-hidden="true">i</span><div><strong id="compat-title">Checking browser compatibility…</strong><p id="compat-detail">Bluetooth scanning requires a supported browser and an HTTPS connection.</p></div></section>
+        <div class="content-grid">
+          <section class="panel scanner-panel" aria-labelledby="scan-title">
+            <div class="panel-heading"><h2 id="scan-title">Discover Devices</h2><span class="micro">01 / SCAN</span></div>
+            <div id="scan-visual" class="scan-visual" aria-hidden="true"><div class="orbit orbit-outer"></div><div class="orbit orbit-inner"></div><svg viewBox="0 0 40 56"><path d="M19 3v50l15-14L7 14m0 28L34 17 19 3" /></svg><span class="orbit-dot"></span></div>
+            <div class="scan-copy"><h3>Find your T100</h3><p>Turn on Bluetooth and keep your T100 nearby.<br>Click Scan and select a device in the browser dialog.</p></div>
+            <button id="scan" class="primary" type="button" disabled><span aria-hidden="true">＋</span><span id="scan-label">Scan for T100 Devices</span><span aria-hidden="true">↗</span></button>
+            <p id="scan-status" class="scan-status" role="status" aria-live="polite">Checking compatibility…</p>
+            <div class="scan-foot"><span class="led" aria-hidden="true"></span>Only T100 advertising devices are shown</div>
+          </section>
+          <section class="panel devices-panel" aria-labelledby="devices-title">
+            <div class="panel-heading"><h2 id="devices-title">Selected Devices <span id="count" class="count">00</span></h2><button id="clear-devices" class="text-button" disabled>Clear list</button></div>
+            <div id="empty" class="empty"><div class="device-outline" aria-hidden="true"><i></i><span>T100</span><i></i></div><h3>No devices selected</h3><p>Devices selected in the browser dialog<br>will appear here.</p></div>
+            <ul id="devices" class="device-list" aria-label="Devices selected in this session"></ul>
+            <p class="list-note">Selecting a device does not connect or pair it. This list is kept only for the current page session.</p>
+          </section>
+        </div>
+        <section class="panel guide" aria-labelledby="guide-title"><div class="panel-heading"><h2 id="guide-title">Before You Start</h2><span class="micro">QUICK CHECK</span></div><ol><li><span>01</span><div><strong>Wake up your device</strong><p>Make sure your T100 is powered on and discoverable.</p></div></li><li><span>02</span><div><strong>Allow Bluetooth access</strong><p>Turn on Bluetooth and allow your browser to access it.</p></div></li><li><span>03</span><div><strong>Select your T100</strong><p>Select a device whose name starts with YD- in the dialog and confirm.</p></div></li></ol></section>
+        <section class="panel log-panel" aria-labelledby="log-title"><div class="panel-heading"><h2 id="log-title"><span class="log-dot" aria-hidden="true"></span>Activity Log</h2><button id="clear-log" class="text-button">Clear log</button></div><ol id="logs" class="logs" aria-label="Activity Log"></ol></section>
+        <footer class="page-footer"><span>T100 MFG / Browser Bluetooth Tools</span><span>Desktop Chrome / Edge · Android Chrome</span></footer>
+        <noscript><p class="compatibility">Enable JavaScript to use Bluetooth scanning.</p></noscript>
+      </main>
+    </div>
+  </body>
+</html>
