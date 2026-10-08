@@ -52,10 +52,17 @@
           <button title="Bind, install preset1 emotion, then reboot" id="simBindBtn" class="disconnect-link bind-link" type="button" disabled>BIND</button>
           <button id="simResetBtn" class="disconnect-link" type="button" disabled>RESET</button>
           <button id="factoryBtn" class="disconnect-link" type="button" disabled>FACTORY</button>
-          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="true">LOG</button>
+          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="true">Event log</button>
         </div>
       </header>
 
+      <nav class="workspace-sidebar" aria-label="Workspace navigation">
+        <div class="sidebar-label">WORKSPACE</div>
+        <button class="workspace-link is-active" data-nav="connect" data-nav-view="connect" type="button"><span class="workspace-number">01</span><span>Device Connect</span></button>
+        <button class="workspace-link" data-nav="test" data-nav-view="test" type="button"><span class="workspace-number">02</span><span>Device simulator</span></button>
+        <button class="workspace-link" data-nav="oad" data-nav-view="oad" type="button"><span class="workspace-number">03</span><span>OAD Update</span></button>
+        <div class="sidebar-footer"><span class="sidebar-label">T100 DEVICE STUDIO</span><p>Connect. Control. Update.</p><span>Bluetooth workspace</span></div>
+      </nav>
       <div class="console-body">
         <main class="view-host console-stage" id="screenViewport" tabindex="0" aria-label="Device screens. Swipe horizontally to switch screens.">
           <div id="screenTrack" class="screen-track">
@@ -63,15 +70,17 @@
             <div class="view-inner view-inner-wide connection-layout">
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">01 / CONNECT</div>
+                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
                   <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
                 </div>
               </div>
 
+              <div class="connection-note"><span class="connection-note-label">Before you connect</span><p>Power on your device and keep it nearby. Choose your T100 in the Bluetooth picker.</p></div>
               <div id="connectBusyHost" class="sim-main-panel connect-picker">
                 <button id="simRefreshScanBtn" class="action-button print" type="button">Select Bluetooth Device</button>
               </div>
+              <p class="connection-footnote">Your device controls will be available once connected.</p>
             </div>
           </section>
 
@@ -79,9 +88,9 @@
             <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">01 / CONNECT</div>
+                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
                   <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
                 </div>
               </div>
 
@@ -245,9 +254,9 @@
             <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">01 / CONNECT</div>
+                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
                   <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Select a nearby T100 to connect automatically</p>
+                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
                 </div>
               </div>
 
@@ -258,7 +267,7 @@
             <div class="view-inner" data-gate-content="connected" hidden>
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">03 / FIRMWARE</div>
+                  <div class="section-kicker">FIRMWARE</div>
                   <h2 class="view-title">OAD Update</h2>
                   <p class="view-subtitle">Select OAD firmware and upgrade over BLE</p>
                 </div>
@@ -296,8 +305,8 @@
         <div class="log-drawer-header">
           <div class="field-label">EVENT LOG</div>
           <div class="log-drawer-actions">
-            <button id="simClearLogBtn" class="log-clear" type="button">CLR</button>
-            <button id="logDrawerClose" class="ghost-btn" type="button">HIDE</button>
+            <button id="simClearLogBtn" class="log-clear" type="button">Clear</button>
+            <button id="logDrawerClose" class="ghost-btn" type="button">Hide</button>
           </div>
         </div>
         <div id="simLog" class="event-log sim-event-log"></div>
