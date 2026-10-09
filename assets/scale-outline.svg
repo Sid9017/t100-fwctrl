@@ -1,1 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 520" fill="none" stroke="#353831" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M177 42 C241 39 451 42 511 43 C581 44 626 74 632 127 L658 397 C663 449 623 477 562 481 C432 487 215 485 113 481 C55 479 20 453 23 401 L48 133 C52 77 99 44 177 42"/><path d="M27 429 C40 473 91 488 152 490 C286 495 455 495 556 489 C612 486 642 472 651 447"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 520" fill="none">
+  <defs>
+    <linearGradient id="rear-fade" x1="0" y1="35" x2="0" y2="335" gradientUnits="userSpaceOnUse">
+      <stop stop-color="white" stop-opacity="0"/>
+      <stop offset=".23" stop-color="white" stop-opacity=".12"/>
+      <stop offset=".62" stop-color="white" stop-opacity=".7"/>
+      <stop offset="1" stop-color="white"/>
+    </linearGradient>
+    <mask id="body-fade" maskUnits="userSpaceOnUse" x="0" y="0" width="680" height="520">
+      <rect width="680" height="520" fill="url(#rear-fade)"/>
+    </mask>
+    <linearGradient id="lip-shade" x1="0" y1="445" x2="0" y2="495" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#353831" stop-opacity=".02"/>
+      <stop offset=".65" stop-color="#353831" stop-opacity=".13"/>
+      <stop offset="1" stop-color="#353831" stop-opacity=".04"/>
+    </linearGradient>
+    <radialGradient id="ground-shade">
+      <stop stop-color="#353831" stop-opacity=".15"/>
+      <stop offset=".55" stop-color="#353831" stop-opacity=".07"/>
+      <stop offset="1" stop-color="#353831" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="340" cy="490" rx="298" ry="24" fill="url(#ground-shade)"/>
+  <g mask="url(#body-fade)" stroke="#353831" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- The face and lower lip share exact endpoints: no open right corner. -->
+    <path d="M26 420 C31 468 78 488 151 491 C281 496 460 495 557 490 C615 487 648 471 652 438 C631 467 601 476 555 479 C435 484 221 483 123 479 C67 477 35 460 26 420 Z" fill="url(#lip-shade)" stroke-opacity=".65"/>
+    <path d="M26 420 C23 409 23 401 25 387 L48 132 C53 74 99 44 177 42 C250 39 442 42 511 43 C582 44 625 75 631 126 L655 391 C658 410 658 424 652 438 C631 467 601 476 555 479 C435 484 221 483 123 479 C67 477 35 460 26 420 Z"/>
+  </g>
+</svg>
