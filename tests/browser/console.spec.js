@@ -398,12 +398,13 @@ test('history image wheels, unit wheel and stars submit the chosen values',async
   await expect(page.locator('#simHistRating')).toHaveValue('4');
 });
 
-test('device modules keep their controls on compact horizontal rows',async({page})=>{
+test('device operation cards align and adapt without overflowing',async({page})=>{
   await page.setViewportSize({width:1440,height:1100});await mockBluetooth(page);await connect(page);
   await page.locator('#historyCard').scrollIntoViewIfNeeded();
   for(const row of await page.locator('.compact-row').all()) {
-    const centers=await row.evaluate(el=>[...el.children].filter(c=>!c.hidden).map(c=>{const r=c.getBoundingClientRect();return r.y+r.height/2;}));
-    expect(Math.max(...centers)-Math.min(...centers)).toBeLessThan(2);
+    expect(await row.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+    const buttons=await row.locator('button:visible').evaluateAll(els=>els.map(el=>el.getBoundingClientRect().height));
+    expect(buttons.every(height=>height>=44)).toBe(true);
   }
   await page.screenshot({path:'/tmp/t100-compact-controls.png'});
   await page.setViewportSize({width:390,height:844});
@@ -546,4 +547,39 @@ test('mobile header stays on one row, exposes device actions and starts with log
   await expect(page.locator('#logDrawer')).toBeVisible();
   await page.locator('#logDrawerToggle').click();
   await page.screenshot({ path: '/tmp/t100-mobile-header.png' });
+});
+
+test('companion layout loads its artwork and keeps controls accessible across viewport sizes', async ({page}) => {
+  await page.setViewportSize({width:390,height:844});
+  await mockBluetooth(page);
+  await page.goto('/');
+  await expect.poll(()=>page.locator('#viewConnect .connection-illustration').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+  await page.screenshot({path:'/tmp/t100-app-connect.png'});
+  await page.getByRole('button',{name:'Select Bluetooth Device'}).click();
+  await expect(page.locator('#simStateText')).toHaveText('Connected');
+  await expect.poll(()=>page.frameLocator('#runtimeFrame').locator('.chassis').evaluate(img=>img.naturalWidth)).toBeGreaterThan(0);
+  await expect.poll(()=>page.locator('#viewTest').evaluate(el=>Math.round(el.getBoundingClientRect().left))).toBe(0);
+  await page.screenshot({path:'/tmp/t100-app-mobile.png'});
+  for(const [width,height] of [[320,640],[375,812],[844,390],[768,1024],[1440,1000]]) {
+    await page.setViewportSize({width,height});
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth)).toBe(width);
+    for(const card of await page.locator('.compact-row').all()) {
+      expect(await card.evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+    }
+    await page.locator('#simAppendKcalBtn').scrollIntoViewIfNeeded();
+    await expect(page.locator('#simAppendKcalBtn')).toBeInViewport();
+    await page.locator('#viewTest').evaluate(el=>el.scrollTo(0,0));
+    if(width===1440)await page.screenshot({path:'/tmp/t100-app-desktop.png'});
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.locator('#historyCard').scrollIntoViewIfNeeded();
+  await page.screenshot({path:'/tmp/t100-app-controls.png'});
+  await page.getByRole('button',{name:'Firmware screen',exact:true}).click();
+  await expect(page.locator('#viewOad')).toHaveAttribute('aria-hidden','false');
+  await expect.poll(()=>page.locator('#viewOad').evaluate(el=>Math.round(el.getBoundingClientRect().left))).toBe(0);
+  await page.screenshot({path:'/tmp/t100-app-firmware.png'});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await expect(page.locator('#screenTrack')).toHaveCSS('transition-duration','0s');
+  await page.getByRole('button',{name:'Controls screen',exact:true}).click();
+  await expect(page.locator('#viewTest')).toHaveAttribute('aria-hidden','false');
 });

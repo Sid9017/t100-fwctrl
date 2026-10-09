@@ -247,7 +247,7 @@ function setLogDrawerOpen(open) {
   }
   if (refs.logDrawerToggle) {
     refs.logDrawerToggle.setAttribute('aria-expanded', state.logDrawerOpen ? 'true' : 'false');
-    refs.logDrawerToggle.textContent = state.logDrawerOpen ? 'LOG·ON' : 'LOG·OFF';
+    refs.logDrawerToggle.textContent = state.logDrawerOpen ? 'Close log' : 'Activity';
   }
 }
 

@@ -155,3 +155,16 @@ main { display:block; padding:0; }
 .actions { flex-wrap:wrap; }
 .status { gap:12px; }
 body { overflow:hidden; }
+
+/* Figma-inspired tapered chassis; monochrome pen contour, live Wasm pixels. */
+:root, body { background:transparent; }
+.preview { padding:0; background:transparent; }
+.device { width:100%; aspect-ratio:680 / 520; margin:0; }
+.chassis { width:100%; height:100%; }
+.light-bar { left:15%; top:71%; width:70%; aspect-ratio:508 / 94; border-radius:999px; }
+.light-bar canvas,.light-bar .drawer { top:7.45%; height:85.1%; }
+.light-bar .led { top:38.3%; height:22.15%; }
+.light-bar .led::after { content:''; position:absolute; width:44px; height:44px; left:50%; top:50%; transform:translate(-50%,-50%); }
+.light-bar .led:focus-visible { outline:2px solid #a6ba4c; outline-offset:8px; }
+.status { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+@media(prefers-reduced-motion:reduce) { .light-bar .drawer { transition:none; } }

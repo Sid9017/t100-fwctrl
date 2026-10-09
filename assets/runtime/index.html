@@ -11,22 +11,7 @@
   <main>
     <section class="preview" aria-label="Device preview">
       <div class="device">
-        <svg class="chassis" viewBox="0 0 680 270" aria-hidden="true">
-          <defs>
-            <linearGradient id="rearFade" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#686d6b" stop-opacity="0" />
-              <stop offset="0.64" stop-color="#686d6b" stop-opacity="0.28" />
-              <stop offset="1" stop-color="#444a48" stop-opacity="0.75" />
-            </linearGradient>
-            <linearGradient id="frontFade" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#444a48" stop-opacity="0.52" />
-              <stop offset="1" stop-color="#444a48" stop-opacity="0.88" />
-            </linearGradient>
-          </defs>
-          <path class="rear-line" d="M39 2 C37 23 34 48 29 79 M641 2 C643 23 646 48 651 79" />
-          <path class="top-seam" d="M29 79 C27 96 72 116 120 117 L560 117 C608 116 653 96 651 79" />
-          <path class="front-line" d="M29 79 C24 116 21 199 32 229 C43 251 74 260 116 260 L564 260 C606 260 637 251 648 229 C659 199 656 116 651 79" />
-        </svg>
+        <img class="chassis" src="../scale-outline.svg" alt="" />
         <div class="light-bar">
           <button id="leftLed" class="led left-led" aria-label="Left key P16" title="Left key P16"></button>
           <canvas id="panel" width="320" height="80" aria-label="T100 display"></canvas>

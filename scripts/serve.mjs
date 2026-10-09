@@ -7,7 +7,7 @@ if (!process.argv.includes('--dist')) await buildSite();
 const root = fileURLToPath(new URL('../dist/',import.meta.url));
 const port = Number(process.env.PORT || 8766);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
-  '.wasm':'application/wasm','.ttf':'font/ttf','.png':'image/png','.json':'application/json','.bin':'application/octet-stream'};
+  '.wasm':'application/wasm','.ttf':'font/ttf','.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.bin':'application/octet-stream'};
 createServer(async(req,res)=>{
   try {
     if(!['GET','HEAD'].includes(req.method)){res.writeHead(405);res.end();return;}

@@ -27,6 +27,22 @@ Browser tests use an installed Google Chrome and a mock Bluetooth peripheral.
 They never connect to or modify physical hardware. Playwright starts a local
 server on port 8767 unless one is already running there.
 
+## Companion interface
+
+The responsive interface keeps three horizontal screens: connection, live device
+controls, and OAD. Swiping, keyboard navigation and the small page indicators
+switch screens without discarding form values. Connection opens the control screen.
+The phone header groups Bind, Reset and Factory under Actions; Activity opens the
+log and detailed device status.
+
+The visual direction follows the supplied T100 Figma reference, with UI UX Pro Max
+and Taste Skill guidance: warm light surfaces, touch-sized actions and grouped
+mobile forms. The supplied device silhouette is redrawn as monochrome SVG contours
+in `assets/scale-outline.svg` and `assets/scale-illustration.svg`. The connected
+preview retains the original live Wasm canvas, status mapping and key handlers.
+These assets, fonts and runtime files are served locally with no design-service
+or CDN dependency. The app uses native CSS and retains the existing JavaScript stack.
+
 ## Bluetooth features
 
 - T100 manufacturer-data filtering, direct connection after selection,

@@ -2,10 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>T100 Device Studio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>T100 Companion</title>
+    <meta name="theme-color" content="#f3f5e9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <link rel="icon" href="data:," />
-    <meta name="description" content="T100 Bluetooth manufacturing console: connect, bind, control and update your device." />
+    <meta name="description" content="Your T100 companion. Connect, control and update your scale." />
     <link rel="stylesheet" href="./src/styles.css" />
   </head>
   <body>
@@ -15,7 +17,7 @@
       <header class="console-hud">
         <button id="homeBrandBtn" class="brand" type="button" title="Connect">
           <span class="brand-mark">T100</span>
-          <span class="brand-title">DEVICE STUDIO</span>
+          <span class="brand-title">companion</span>
         </button>
 
         <div class="hud-metrics">
@@ -38,14 +40,7 @@
               <span class="battery-cap"></span>
             </div>
           </div>
-          <div class="hud-chip hud-chip-status">
-            <span class="hud-k">STATUS</span>
-            <div id="simDeviceStatus" class="device-status-box is-empty" title="FEE5 status unavailable">
-              <strong class="device-status-screen">--</strong>
-              <span class="device-status-detail">-- / --</span>
-              <span class="device-status-flags">FLAGS --</span>
-            </div>
-          </div>
+
         </div>
 
         <div class="hud-actions">
@@ -57,45 +52,40 @@
           <button id="factoryBtn" class="disconnect-link" type="button" disabled>FACTORY</button>
             </div>
           </details>
-          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="false">LOG·OFF</button>
+          <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="false">Activity</button>
         </div>
       </header>
 
-      <nav class="workspace-sidebar" aria-label="Workspace navigation">
-        <div class="sidebar-label">WORKSPACE</div>
-        <button class="workspace-link is-active" data-nav="connect" data-nav-view="connect" type="button"><span class="workspace-number">01</span><span>Device Connect</span></button>
-        <button class="workspace-link" data-nav="test" data-nav-view="test" type="button"><span class="workspace-number">02</span><span>Device simulator</span></button>
-        <button class="workspace-link" data-nav="oad" data-nav-view="oad" type="button"><span class="workspace-number">03</span><span>OAD Update</span></button>
-        <div class="sidebar-footer"><span class="sidebar-label">T100 DEVICE STUDIO</span><p>Connect. Control. Update.</p><span>Bluetooth workspace</span></div>
-      </nav>
       <div class="console-body">
         <main class="view-host console-stage" id="screenViewport" tabindex="0" aria-label="Device screens. Swipe horizontally to switch screens.">
           <div id="screenTrack" class="screen-track">
           <section id="viewConnect" class="view is-active" data-view="connect">
             <div class="view-inner view-inner-wide connection-layout">
+              <img class="connection-illustration" src="./assets/scale-illustration.svg" alt="T100 scale, drawn in a single ink color" />
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
-                  <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
+                  <div class="section-kicker">A little connection.</div>
+                  <h2 class="view-title">Meet your T100.</h2>
+                  <p class="view-subtitle">Wake your scale. Keep it close. Let’s connect.</p>
                 </div>
               </div>
 
-              <div class="connection-note"><span class="connection-note-label">Before you connect</span><p>Power on your device and keep it nearby. Choose your T100 in the Bluetooth picker.</p></div>
+
               <div id="connectBusyHost" class="sim-main-panel connect-picker">
                 <button id="simRefreshScanBtn" class="action-button print" type="button">Select Bluetooth Device</button>
               </div>
-              <p class="connection-footnote">Your device controls will be available once connected.</p>
+
             </div>
           </section>
 
           <section id="viewTest" class="view" data-view="test">
             <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
+              <img class="connection-illustration" src="./assets/scale-illustration.svg" alt="T100 scale, drawn in a single ink color" />
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
-                  <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
+                  <div class="section-kicker">A little connection.</div>
+                  <h2 class="view-title">Meet your T100.</h2>
+                  <p class="view-subtitle">Wake your scale. Keep it close. Let’s connect.</p>
                 </div>
               </div>
 
@@ -105,7 +95,7 @@
             </div>
             <div class="studio-layout" data-gate-content="connected" hidden>
         <section class="simulator-pane gate-content" data-gate-content="connected" aria-label="T100 simulator" hidden>
-          <div class="studio-heading"><div><div class="section-kicker">T100 / WEB RUNTIME</div><h1>Device simulator</h1></div><span class="runtime-badge">C → Wasm</span></div>
+          <div class="studio-heading"><div><p class="section-kicker">Your everyday sidekick.</p><h1>A little more balance.</h1></div></div>
           <div class="simulator-card"><div class="simulator-mode-corner"><span class="simulator-wheel-label">mode</span><div id="modeWheel" class="history-wheel mode-wheel" role="listbox" tabindex="0" aria-label="Scale mode"></div><select id="simCoffeeModeSelect" aria-label="Scale mode" hidden>
                       <option value="3" selected>KCal</option>
                       <option value="0">Kitchen</option>
@@ -120,14 +110,14 @@
                 <div class="sim-control-card coffee-recipe-card compact-row">
                   <div class="coffee-recipe-head">
                     <div>
-                      <div class="field-label">OPERATION</div>
-                      <p class="coffee-recipe-hint">Mode applies on the next scale entry.</p>
+                      <div class="field-label">Operation</div>
+
                     </div>
                   </div>
                   <div id="simContainerFields">
                     <label class="field"><span>Container weight (g)</span><input id="simContainerWeight" type="number" min="0" max="1999.9" step="0.1" value="100" /></label>
                     <div class="actions"><button id="simContainerSet" type="button">Set container weight</button><button id="simContainerClear" type="button">Clear container weight</button></div>
-                    <p class="coffee-recipe-hint">KCal only. Tare keeps the container setting.</p>
+
                     <p id="simContainerStatus" role="status"></p>
                   </div>
                   <div id="simCoffeeRecipeFields" class="coffee-recipe-fields" hidden>
@@ -173,7 +163,7 @@
                 <div class="sim-control-card compact-row">
                   <div class="field-label">Countdown</div>
                   <div class="sim-kcal-fields">
-                    <label class="field sim-kcal-field">
+                    <label class="field sim-kcal-field"><span>Remaining kcal</span>
                       <input
                         id="simCurrentKcalInput"
                         type="number"
@@ -185,7 +175,7 @@
                         aria-label="Remaining kcal (negative means over target)"
                       />
                     </label>
-                    <label class="field sim-kcal-field">
+                    <label class="field sim-kcal-field"><span>Target kcal</span>
                       <input
                         id="simTargetKcalInput"
                         type="number"
@@ -202,7 +192,7 @@
                 </div>
 
                 <div class="sim-control-card compact-row">
-                  <div class="field-label">Notify bubble</div>
+                  <div class="field-label">Notify</div>
                   <div class="sim-notify-fields">
                     <label class="field sim-notify-field sim-notify-color-field">
                       <span>Color</span>
@@ -257,11 +247,12 @@
 
           <section id="viewOad" class="view" data-view="oad">
             <div class="view-inner view-inner-wide connection-layout" data-gate="connected">
+              <img class="connection-illustration" src="./assets/scale-illustration.svg" alt="T100 scale, drawn in a single ink color" />
               <div class="view-header">
                 <div>
-                  <div class="section-kicker">BLUETOOTH CONNECTION</div>
-                  <h2 class="view-title">Device Connect</h2>
-                  <p class="view-subtitle">Connect your T100 to start a device session.</p>
+                  <div class="section-kicker">A little connection.</div>
+                  <h2 class="view-title">Meet your T100.</h2>
+                  <p class="view-subtitle">Wake your scale. Keep it close. Let’s connect.</p>
                 </div>
               </div>
 
@@ -273,8 +264,8 @@
               <div class="view-header">
                 <div>
                   <div class="section-kicker">FIRMWARE</div>
-                  <h2 class="view-title">OAD Update</h2>
-                  <p class="view-subtitle">Select OAD firmware and upgrade over BLE</p>
+                  <h2 class="view-title">A fresh start.</h2>
+                  <p class="view-subtitle">Keep your T100 up to date, over Bluetooth.</p>
                 </div>
               </div>
 
@@ -306,6 +297,11 @@
         </main>
       </div>
 
+      <nav class="screen-pagination" aria-label="Device screens">
+        <button data-nav="connect" data-nav-view="connect" class="page-dot is-active" aria-label="Connection screen" type="button"><span></span></button>
+        <button data-nav="test" data-nav-view="test" class="page-dot" aria-label="Controls screen" type="button"><span></span></button>
+        <button data-nav="oad" data-nav-view="oad" class="page-dot" aria-label="Firmware screen" type="button"><span></span></button>
+      </nav>
       <aside id="logDrawer" class="console-log" aria-hidden="true">
         <div class="log-drawer-header">
           <div class="field-label">EVENT LOG</div>
@@ -314,6 +310,14 @@
             <button id="logDrawerClose" class="ghost-btn" type="button">Hide</button>
           </div>
         </div>
+          <div class="hud-chip hud-chip-status">
+            <span class="hud-k">STATUS</span>
+            <div id="simDeviceStatus" class="device-status-box is-empty" title="FEE5 status unavailable">
+              <strong class="device-status-screen">--</strong>
+              <span class="device-status-detail">-- / --</span>
+              <span class="device-status-flags">FLAGS --</span>
+            </div>
+          </div>
         <div id="simLog" class="event-log sim-event-log"></div>
       </aside>
     </div>
