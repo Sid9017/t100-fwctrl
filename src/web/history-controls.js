@@ -71,8 +71,6 @@ export function renderHistoryControls(items) {
   ['simHistPhoto1','simHistPhoto2','simHistPhoto3'].forEach((id,index)=>{
     wheel(document.getElementById(`historyImageWheel${index+1}`),document.getElementById(id),choices,20);
   });
-  wheel(document.getElementById('historyUnitWheel'),document.getElementById('simHistUnitSelect'),
-    [{value:'g',label:'g'},{value:'oz',label:'oz'}],20);
   const rating=document.getElementById('simHistRating');
   const stars=[...document.querySelectorAll('[data-history-rating]')];
   const paint=()=>stars.forEach(star=>{

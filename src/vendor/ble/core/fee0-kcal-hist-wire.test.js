@@ -24,27 +24,23 @@ test('RECORD packs caller UUID, timestamp and metadata', () => {
     uuid: UUID,
     timestampUtc: TIMESTAMP,
     kcal: 1234,
-    weight: -500,
-    unit: 0x01,
     hasImage: true,
   });
-  assert.equal(buf.length, 31);
+  assert.equal(buf.length, 26);
   assert.equal(buf[0], 0x65);
   assert.deepEqual(buf.subarray(1, 17), kcalHistUuidBytes(UUID));
   assert.equal(buf.readUInt32LE(17), TIMESTAMP);
   assert.equal(buf.readUInt32LE(21), 1234);
-  assert.equal(buf.readInt32LE(25), -500);
-  assert.equal(buf[29], 0x01);
-  assert.equal(buf[30], 0x01);
+  assert.equal(buf[25], 0x01);
 });
 
 test('RECORD delete packs only UUID and delete flag', () => {
   const buf = buildKcalHistDeletePayload(UUID);
-  assert.equal(buf.length, 31);
+  assert.equal(buf.length, 26);
   assert.equal(buf[0], 0x65);
   assert.deepEqual(buf.subarray(1, 17), kcalHistUuidBytes(UUID));
-  assert.deepEqual(buf.subarray(17, 30), Buffer.alloc(13));
-  assert.equal(buf[30], 0x02);
+  assert.deepEqual(buf.subarray(17, 25), Buffer.alloc(8));
+  assert.equal(buf[25], 0x02);
 });
 
 test('IMAGE_BEGIN and COMMIT reuse the same UUID and timestamp', () => {
@@ -117,16 +113,16 @@ test('maxKcalHistChunkData shrinks for default ATT MTU', () => {
 });
 
 test('Multi-image metadata carries rating and expected transfer count only', () => {
-  const args = { uuid: UUID, timestampUtc: TIMESTAMP, kcal: 682, weight: 120, unit: 0,
+  const args = { uuid: UUID, timestampUtc: TIMESTAMP, kcal: 682,
     hasImage: true, rating: 5, photoCount: 3 };
   const record = buildKcalHistRecordPayload(args);
-  assert.equal(record.length, 33);
-  assert.deepEqual([...record.subarray(30)], [1, 5, 3]);
+  assert.equal(record.length, 28);
+  assert.deepEqual([...record.subarray(25)], [1, 5, 3]);
   for (const patch of [{rating: 0}, {rating: 6}, {rating: 1.5}, {photoCount: 4}, {photoCount: 0}, {hasImage: false}]) {
     assert.throws(() => buildKcalHistRecordPayload({...args, ...patch}));
   }
   const noImage = buildKcalHistRecordPayload({...args, hasImage: false, photoCount: 0});
-  assert.deepEqual([...noImage.subarray(30)], [0, 5, 0]);
+  assert.deepEqual([...noImage.subarray(25)], [0, 5, 0]);
 });
 
 test('Each photo remains a square with RGB565+alpha and independent index', () => {
@@ -141,4 +137,31 @@ test('Each photo remains a square with RGB565+alpha and independent index', () =
   for (const patch of [{wx: 80}, {wy: 80}, {totalLen: 3200}, {photoIndex: 3}, {photoIndex: -1}]) {
     assert.throws(() => buildKcalHistImageBeginPayload({...args, ...patch}));
   }
+});
+
+
+test('Authenticated RECORD supports 0..3 photos without weight/unit and exact new offsets', () => {
+  const { buildFee0VendorWirePayload } = require('../../../web/actions.js');
+  const auth8=Buffer.from('TEST1234');
+  for (let photoCount=0;photoCount<=3;photoCount++) {
+    const record=buildKcalHistRecordPayload({uuid:UUID,timestampUtc:TIMESTAMP,kcal:682,
+      hasImage:photoCount>0,rating:5,photoCount});
+    assert.equal(record.length,28);
+    const wire=buildFee0VendorWirePayload(record,{auth8});
+    assert.equal(wire.length,36);
+    assert.equal(wire[0],0x65);
+    assert.deepEqual(wire.subarray(1,9),auth8);
+    assert.deepEqual(wire.subarray(9,25),kcalHistUuidBytes(UUID));
+    assert.equal(wire.readUInt32LE(25),TIMESTAMP);
+    assert.equal(wire.readUInt32LE(29),682);
+    assert.deepEqual([...wire.subarray(33)],[photoCount?1:0,5,photoCount]);
+  }
+  for (const hasImage of [false,true]) {
+    const record=buildKcalHistRecordPayload({uuid:UUID,timestampUtc:TIMESTAMP,kcal:0,hasImage});
+    const wire=buildFee0VendorWirePayload(record,{auth8});
+    assert.equal(wire.length,34);assert.equal(wire[33],hasImage?1:0);
+  }
+  const deleted=buildFee0VendorWirePayload(buildKcalHistDeletePayload(UUID),{auth8});
+  assert.equal(deleted.length,34);assert.equal(deleted[33],2);
+  assert.deepEqual(deleted.subarray(25,33),Buffer.alloc(8));
 });

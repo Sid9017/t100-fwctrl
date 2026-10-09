@@ -58,7 +58,7 @@ for(const key of [0,1])test(`KCal key ${key} uses four hardware-style PWM ramps,
   assert.deepEqual(pixels(x),result);assert.equal(x.preview_container_mg(),key===0?-1:100000);
 });
 test('History holds the black entry frame for 40 ms before the native staggered reveal',async()=>{
-  const x=await runtime();x.preview_add_history(123,100000,0);x.preview_add_history(456,200000,0);const before=pixels(x);
+  const x=await runtime();x.preview_add_history(123);x.preview_add_history(456);const before=pixels(x);
   x.preview_key(1);x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),before);
   x.preview_tick(75);assert.equal(x.preview_backlight_level(),0);assert.ok(pixels(x).every(v=>v===0));
   x.preview_tick(39);assert.equal(x.preview_backlight_level(),0);assert.equal(x.history_pager_opacity(),0);

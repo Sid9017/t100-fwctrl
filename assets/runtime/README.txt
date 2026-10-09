@@ -31,3 +31,6 @@ Verification:
   npm run test:browser
 The upstream check runs 20 unchanged drawing contracts. Three legacy software
 fade cases are replaced by explicit firmware PWM timing/pixel tests locally.
+
+Rebuilt with the working-tree kcal-only History renderer and single-argument
+preview_add_history(kcal). History records have no weight/unit fields.

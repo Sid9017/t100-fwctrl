@@ -145,7 +145,7 @@ test('scale profiles, container, countdown, notifications and food photos preser
   await page.locator('#simKcalUpdateBtn').click();await expect(page.locator('#simLog')).toContainText('Countdown updated');
   await page.locator('#simNotifyTextInput').fill('Hello');await page.locator('#simNotifyBtn').click();
   await expect(page.locator('#simLog')).toContainText('Notify sent',{timeout:15000});
-  await page.locator('#simHistKcalInput').fill('250');await page.locator('#simHistWeightInput').fill('100');
+  await page.locator('#simHistKcalInput').fill('250');
   await page.locator('#historyImageWheel2').press('ArrowDown');await page.locator('#simAppendKcalBtn').click();
   await expect(page.locator('#simLog')).toContainText('1 photos',{timeout:15000});
   const writes=await page.evaluate(()=>mock.writes.filter(w=>['fee2','fee3'].includes(w.id)));
@@ -371,7 +371,7 @@ test('FEE5 controls Idle, scale modes and sleep without weight changing the scre
 });
 
 
-test('history image wheels, unit wheel and stars submit the chosen values',async({page})=>{
+test('history image wheels and rating submit kcal without weight or unit',async({page})=>{
   await page.setViewportSize({width:390,height:844});await mockBluetooth(page);await connect(page);
   await page.locator('#historyCard').scrollIntoViewIfNeeded();
   for(let i=1;i<=3;i++) {
@@ -379,13 +379,10 @@ test('history image wheels, unit wheel and stars submit the chosen values',async
     await wheel.press('ArrowDown');
     if(i===2)await wheel.press('ArrowDown');
   }
-  await page.locator('#historyUnitWheel').press('End');
-  await expect(page.locator('#simHistUnitSelect')).toHaveValue('oz');
   await page.getByRole('radio',{name:'5 out of 5',exact:true}).click();
   await expect(page.getByRole('radio',{name:'5 out of 5',exact:true})).toHaveAttribute('aria-checked','true');
   await page.locator('#simHistKcalInput').fill('250');
-  await page.locator('#simHistWeightInput').fill('4');
-  const expected=await page.evaluate(()=>({foodFiles:[1,2,3].map(i=>document.getElementById(`simHistPhoto${i}`).value),kcal:250,weight:4,unit:'oz',rating:5}));
+  const expected=await page.evaluate(()=>({foodFiles:[1,2,3].map(i=>document.getElementById(`simHistPhoto${i}`).value),kcal:250,rating:5}));
   await page.evaluate(()=>{const original=mfgApi.appendKcalHist;mfgApi.appendKcalHist=data=>{window.historySubmitted=data;return original(data);};});
   const boxes=await page.locator('.history-image-wheels .history-wheel-frame').evaluateAll(els=>els.map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width};}));
   expect(boxes.every(b=>b.y===boxes[0].y)).toBe(true);
@@ -610,4 +607,23 @@ test('live preview uses committed countdown and notify pixels, keeps unknown his
   await page.evaluate(()=>mock.notifyStatus(3,undefined,{phase:1}));
   await expect(page.locator('#previewSource')).toContainText('Countdown values are not reported');
   await expect.poll(lit).toBe(false);
+});
+
+for (const count of [0,2]) test(`history uploads ${count} photos with kcal-only RECORD`,async({page})=>{
+  await mockBluetooth(page);await connect(page);
+  await expect(page.locator('#simHistWeightInput, #simHistUnitSelect, #historyUnitWheel')).toHaveCount(0);
+  await page.locator('#historyCard').scrollIntoViewIfNeeded();
+  await page.locator('#simHistKcalInput').fill('682');
+  for(let i=1;i<=count;i++)await page.locator(`#historyImageWheel${i}`).press('ArrowDown');
+  await page.locator('#simAppendKcalBtn').click();
+  await expect(page.locator('#simLog')).toContainText(`${count} photos`,{timeout:15000});
+  const writes=await page.evaluate(()=>mock.writes.filter(w=>['fee2','fee3'].includes(w.id)));
+  const record=writes.find(w=>w.data[0]===0x65).data;
+  expect(record).toHaveLength(36);
+  expect(record.slice(29,33)).toEqual([170,2,0,0]);
+  expect(record.slice(33)).toEqual([count?1:0,4,count]);
+  const begins=writes.filter(w=>w.data[0]===0x66);
+  expect(begins).toHaveLength(count);
+  expect(begins.map(w=>w.data[41])).toEqual(Array.from({length:count},(_,i)=>i));
+  expect(writes.filter(w=>w.data[0]===0x68)).toHaveLength(count);
 });

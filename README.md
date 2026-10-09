@@ -184,10 +184,22 @@ prove a device is bound. After updating an older page, disconnect and select the
 device again so the browser grants the additional service UUIDs.
 
 Kcal history uses three independent image wheels (including No image), followed
-by kcal and weight fields, a g/oz unit wheel, and a 1–5 star rating. Wheel choices
+by a kcal field and a 1–5 dot rating. History no longer includes weight or unit;
+the live scale retains its g/oz selector. Wheel choices
 support vertical scrolling, clicks and Up/Down/Home/End keys. Selected images
 retain their slot order when submitted.
 
 Notification entry and exit match the firmware PWM model: freeze pixels during
 150 ms backlight ramps, swap the frame at black, and allow 40 ms to settle before
 fading in. The status bridge waits for this lifecycle instead of overriding it.
+
+
+Kcal history RECORD (0x65) uses UUID16, timestamp u32 LE, kcal u32 LE and flags,
+optionally followed by rating (1..5) and photo_count (0..3). Before auth8 wrapping,
+the payload is 26/28 bytes: UUID at 1, timestamp at 17, kcal at 21, flags at 25,
+rating at 26 and photo_count at 27. Authenticated ATT values are 34/36 bytes.
+Flags are 0 for no images, 1 for images and 2 for deletion by UUID. Delete uses
+the 26-byte payload with all metadata except UUID/flags zeroed. The old weight/unit
+layout is incompatible with the updated firmware. IMAGE_BEGIN/DATA/COMMIT/ABORT
+and each 40x40 RGB565+alpha image are unchanged. Firmware handles Flash migration;
+the browser does not migrate device records.

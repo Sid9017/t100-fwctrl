@@ -182,7 +182,7 @@ function dispatch(type, data = {}) {
     case 'unit': $('unit').value = data.unit === 'oz' ? '1' : '0'; api.unit(data.unit === 'oz' ? 1 : 0); break;
     case 'targets': api.targets(validNumber(data.primary, 0, 1999.9), validNumber(data.water, 0, 1999.9)); break;
     case 'kcal': api.kcal(validNumber(data.current, -9999, 9999), validNumber(data.target, 1, 9999)); break;
-    case 'history': api.history(validNumber(data.kcal, 0, 9999), Math.round(validNumber(data.grams, 0, 2000) * 1000), validNumber(data.food, 0, 2)); break;
+    case 'history': api.history(validNumber(data.kcal, 0, 9999)); break;
     case 'lights': api.lights(!!data.left, !!data.right, validNumber(data.brightness, 0, 100)); break;
     case 'notify': api.notify(String(data.text || '').slice(0, 24)); break;
     case 'reset': api.reset(); break;
@@ -222,7 +222,7 @@ window.t100Preview = { dispatch, ready: false,
           }
           return bytes;
         }));
-        dispatch('history',{kcal:data.kcal,grams:data.unit==='oz'?data.weight*28.349523125:data.weight,food:0});
+        dispatch('history',{kcal:data.kcal});
         api.historyMeta(data.rating,photos.length);
         photos.forEach((bytes,i)=>new Uint8Array(module.memory.buffer,api.historyPhoto(i),4800).set(bytes));
         sync(); break;
@@ -267,7 +267,7 @@ $('addHist').onclick = async () => {
     }
     return bytes;
   }));
-  dispatch('history', { kcal: $('histKcal').value, grams: $('histWeight').value, food: 0 });
+  dispatch('history', { kcal: $('histKcal').value });
   api.historyMeta(Number($('histRating').value), photos.length);
   photos.forEach((bytes, i) => new Uint8Array(module.memory.buffer, api.historyPhoto(i), 4800).set(bytes));
   api.render();

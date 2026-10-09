@@ -325,13 +325,12 @@ export class DeviceActions {
     }, actionTimeoutMs);
   }
 
-  async appendKcalHist({ kcal, weight, unit, foodFile, foodFiles, noImage,
+  async appendKcalHist({ kcal, foodFile, foodFiles, noImage,
     uuid, timestampUtc, rating = 4 } = {}) {
-    const kcalN = Number(kcal), weightN = Number(weight);
-    const unitByte = unit === 'oz' || Number(unit) === 1 ? FEE0_SCALE_UNIT_OZ : FEE0_SCALE_UNIT_G;
+    const kcalN = Number(kcal);
     const recordUuid = resolveKcalHistUuid(uuid);
     const timestamp = normalizeTimestampUtc(timestampUtc == null ? Math.floor(Date.now() / 1000) : timestampUtc);
-    const files = foodFiles === undefined ? (noImage ? [] : [foodFile]) : foodFiles;
+    const files = foodFiles === undefined ? (noImage || !foodFile ? [] : [foodFile]) : foodFiles;
     if (!Array.isArray(files) || files.length > 3 || files.some(file => !file)) {
       throw new Error('Select up to three 40x40 photos');
     }
@@ -341,7 +340,7 @@ export class DeviceActions {
       return raster.bytes;
     }));
     const record = buildKcalHistRecordPayload({ uuid: recordUuid, timestampUtc: timestamp,
-      kcal: kcalN, weight: weightN, unit: unitByte, hasImage: images.length > 0,
+      kcal: kcalN, hasImage: images.length > 0,
       rating: Number(rating), photoCount: images.length });
     const timeout = Math.max(GATT_ACTION_TIMEOUT_MS, images.length * estimateKcalHistActionTimeoutMs(
       Math.ceil(4800 / maxKcalHistChunkData(23)), KCAL_HIST_CHUNK_SETTLE_MS));

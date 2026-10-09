@@ -124,7 +124,7 @@ h1,h2,p { margin-top:0; }
 #historyFields .history-wheel-option { height:20px; }
 #historyFields .history-wheel-option img { height:18px; width:18px; }
 #historyFields:disabled .history-wheel { pointer-events:none; opacity:.4; }
-.history-value-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) 44px; align-items:center; gap:12px; }
+.history-value-row { display:grid; grid-template-columns:minmax(0,1fr); align-items:center; gap:12px; }
 .unit-wheel .history-wheel-option span { font-size:15px; }
 .history-rating { display:flex; align-items:center; justify-content:space-between; touch-action:none; user-select:none; }
 .history-rating > span { margin-right:auto; }

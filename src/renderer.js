@@ -110,8 +110,6 @@ const refs = {
   simHistFoodTriggerLabel: document.querySelector('#simHistFoodTriggerLabel'),
   simHistFoodMenu: document.querySelector('#simHistFoodMenu'),
   simHistKcalInput: document.querySelector('#simHistKcalInput'),
-  simHistWeightInput: document.querySelector('#simHistWeightInput'),
-  simHistUnitSelect: document.querySelector('#simHistUnitSelect'),
   simCurrentKcalInput: document.querySelector('#simCurrentKcalInput'),
   simTargetKcalInput: document.querySelector('#simTargetKcalInput'),
   factoryBtn: document.querySelector('#factoryBtn'),
@@ -1160,8 +1158,6 @@ function updateActionButtons() {
     refs.simHistFoodTrigger.disabled = state.kcalHistBusy || state.morphThemeBusy;
   }
   if (refs.simHistKcalInput) refs.simHistKcalInput.disabled = state.kcalHistBusy || state.morphThemeBusy;
-  if (refs.simHistWeightInput) refs.simHistWeightInput.disabled = state.kcalHistBusy || state.morphThemeBusy;
-  if (refs.simHistUnitSelect) refs.simHistUnitSelect.disabled = state.kcalHistBusy || state.morphThemeBusy;
   if (refs.simNotifyColorInput) refs.simNotifyColorInput.disabled = state.kcalHistBusy || state.morphThemeBusy;
   if (refs.simNotifyTextInput) refs.simNotifyTextInput.disabled = state.kcalHistBusy || state.morphThemeBusy;
   syncGuideAndModuleUi();
@@ -1515,21 +1511,6 @@ function parseHistKcalInput(raw) {
   return n;
 }
 
-function parseHistWeightInput(raw) {
-  const text = String(raw == null ? '' : raw).trim();
-  if (!text) {
-    throw new Error('Weight is required');
-  }
-  const n = Number(text);
-  if (!Number.isFinite(n) || !Number.isInteger(n)) {
-    throw new Error('Weight must be an int32 integer');
-  }
-  if (n < -2147483648 || n > 2147483647) {
-    throw new Error('Weight out of range');
-  }
-  return n;
-}
-
 function setKcalHistBusy(busy) {
   state.kcalHistBusy = Boolean(busy);
   updateActionButtons();
@@ -1569,14 +1550,10 @@ refs.simAppendKcalBtn.addEventListener('click', async () => {
     return;
   }
   let kcal;
-  let weight;
-  let unit;
   let foodFile;
   let noImage;
   try {
     kcal = parseHistKcalInput(refs.simHistKcalInput.value);
-    weight = parseHistWeightInput(refs.simHistWeightInput.value);
-    unit = refs.simHistUnitSelect.value;
     foodFile = getSelectedHistFoodFile();
     noImage = foodFile === HIST_FOOD_NO_IMAGE;
     if (!noImage && !foodFile) {
@@ -1588,9 +1565,9 @@ refs.simAppendKcalBtn.addEventListener('click', async () => {
   }
   setKcalHistBusy(true);
   const imgLabel = noImage ? 'No image' : foodFile;
-  pushSimLog(`Append kcal: starting (${kcal} kcal, ${weight} ${unit}, ${imgLabel})`);
+  pushSimLog(`Append kcal: starting (${kcal} kcal, ${imgLabel})`);
   try {
-    const result = await window.mfgApi.appendKcalHist({ kcal, weight, unit,
+    const result = await window.mfgApi.appendKcalHist({ kcal,
       foodFiles: [noImage ? '' : foodFile, document.getElementById('simHistPhoto2').value,
         document.getElementById('simHistPhoto3').value].filter(Boolean),
       rating: Number(document.getElementById('simHistRating').value) });

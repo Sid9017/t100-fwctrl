@@ -10,8 +10,6 @@ const TOPIC_IMAGE_DATA = TOPICS.kcalHistImageData;
 const TOPIC_IMAGE_COMMIT = TOPICS.kcalHistImageCommit;
 const TOPIC_ABORT = TOPICS.kcalHistAbort;
 
-const SCALE_UNIT_G = 0x00;
-const SCALE_UNIT_OZ = 0x01;
 const RECORD_FLAG_HAS_IMAGE = 0x01;
 const RECORD_FLAG_DELETE = 0x02;
 const UUID_BYTES = 16;
@@ -84,8 +82,6 @@ function buildKcalHistRecordPayload({
   uuid,
   timestampUtc,
   kcal,
-  weight,
-  unit,
   hasImage,
   rating,
   photoCount,
@@ -93,42 +89,31 @@ function buildKcalHistRecordPayload({
   const uuidBytes = kcalHistUuidBytes(uuid);
   const timestamp = normalizeTimestampUtc(timestampUtc);
   const kcalN = Number(kcal);
-  const weightN = Number(weight);
-  const unitN = Number(unit);
   if (!Number.isInteger(kcalN) || kcalN < 0 || kcalN > 0xffffffff) {
     throw new Error('kcal must be uint32');
   }
-  if (!Number.isInteger(weightN) || weightN < -0x80000000 || weightN > 0x7fffffff) {
-    throw new Error('weight must be int32');
-  }
-  if (unitN !== SCALE_UNIT_G && unitN !== SCALE_UNIT_OZ) {
-    throw new Error('unit must be 0x00 (g) or 0x01 (oz)');
-  }
-
   const multi = rating !== undefined || photoCount !== undefined;
   if (multi && (!Number.isInteger(rating) || rating < 1 || rating > 5 ||
       !Number.isInteger(photoCount) || photoCount < 0 || photoCount > 3 ||
       Boolean(photoCount) !== Boolean(hasImage))) {
     throw new Error('Invalid history rating (1..5), photos (0..3)');
   }
-  const buf = Buffer.alloc(multi ? 33 : 31);
+  const buf = Buffer.alloc(multi ? 28 : 26);
   buf[0] = TOPIC_RECORD;
   uuidBytes.copy(buf, 1);
   buf.writeUInt32LE(timestamp >>> 0, 17);
   buf.writeUInt32LE(kcalN >>> 0, 21);
-  buf.writeInt32LE(weightN, 25);
-  buf[29] = unitN;
-  buf[30] = hasImage ? RECORD_FLAG_HAS_IMAGE : 0;
-  if (multi) { buf[31] = rating; buf[32] = photoCount; }
+  buf[25] = hasImage ? RECORD_FLAG_HAS_IMAGE : 0;
+  if (multi) { buf[26] = rating; buf[27] = photoCount; }
   return buf;
 }
 
 /** Delete one history entry by UUID; all RECORD fields except UUID/flags are ignored. */
 function buildKcalHistDeletePayload(uuid) {
-  const buf = Buffer.alloc(1 + 30);
+  const buf = Buffer.alloc(1 + 25);
   buf[0] = TOPIC_RECORD;
   kcalHistUuidBytes(uuid).copy(buf, 1);
-  buf[30] = RECORD_FLAG_DELETE;
+  buf[25] = RECORD_FLAG_DELETE;
   return buf;
 }
 
@@ -251,8 +236,6 @@ module.exports = {
   TOPIC_IMAGE_DATA,
   TOPIC_IMAGE_COMMIT,
   TOPIC_ABORT,
-  SCALE_UNIT_G,
-  SCALE_UNIT_OZ,
   RECORD_FLAG_HAS_IMAGE,
   RECORD_FLAG_DELETE,
   CHUNK_DATA_MAX,
