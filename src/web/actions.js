@@ -184,6 +184,7 @@ export class DeviceActions {
     const payload = buildContainerWeightPayload(setting);
     return this.runGattAction('Set KCal container weight', async () => {
       await this.writeVendorPayloadWithOptionalAuth(payload);
+      this._previewCommit?.('container', {grams:payload[2] ? payload.readUInt32LE(3)/1000 : null});
       return { ok: true, message: payload[2]
         ? `Container weight command sent: ${payload.readUInt32LE(3) / 1000} g (KCal only, until Reset or reboot)`
         : 'Clear container weight command sent' };
@@ -221,6 +222,7 @@ export class DeviceActions {
         requireWriteResponse: true,
       });
       await delay(VENDOR_TOPIC_SETTLE_MS);
+      this._previewCommit?.('countdown', {currentKcal:Number(currentKcal), targetKcal:Number(targetKcal)});
       await this.session.writeVendorPayload(connection, wireNavigate, {
         requireWriteResponse: true,
       });
@@ -310,6 +312,7 @@ export class DeviceActions {
         `Notify: GATT send complete (${result.chunkCount} chunks, ${result.payloadBytes} B)`
       );
 
+      if (utcN === NOTIFY_UTC_IMMEDIATE) this._previewCommit?.('notify', {gray:Uint8Array.from(grayBuf), colorRgb565});
       const mode = utcN === NOTIFY_UTC_IMMEDIATE ? 'immediate' : `utc=${utcN}`;
       return {
         ok: true,

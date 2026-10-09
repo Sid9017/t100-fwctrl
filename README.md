@@ -130,8 +130,8 @@ Actual Bluetooth communication and firmware effects require a real-device check.
 
 The Device Studio embeds the original T100 C/Wasm renderer from
 `bk-hw-temp/projects/t100/web_runtime`. It preserves the device outline, RGB565
-screen and P16/P17 keys. Weight is entered in the controls; the weighing surface
-has no press interaction.
+screen and P16/P17 key shapes. Weight comes from Bluetooth notifications; the
+weighing surface has no press interaction.
 The second screen shows the simulator only after connecting a Bluetooth device.
 The always-expanded operations panel operates the connected device directly.
 The mode wheel at the simulator’s upper-left uses the original Wasm mode titles
@@ -140,13 +140,30 @@ The top bar has no disconnect button. The controls contain recipe settings, cont
 notifications and kcal history. The Wasm display is the only weight readout;
 preview-only inputs, target selection, device details and light controls are removed.
 
-The simulator always follows device status, using FEE5 to select the Wasm scene and FEE1 to update
-weight without changing that scene. Idle stays Idle when weight arrives.
-Scale mode/targets and sleep/wake follow device status. Countdown and history
-show status labels because FEE5 omits their content. Notifications use the native
-Wasm PWM transition with an empty preview bubble when no bitmap is available.
-Unbound devices show the original runtime's sample pairing code instead of weight.
-The simulator is a local rendered preview, not live screen mirroring.
+The simulator follows FEE5 screen/phase and FEE1 weight without changing the scene
+when weight arrives. It uses the shared firmware C renderers and state machines.
+The host adapter models PWM fades with opaque framebuffer content, 40 ms dark
+uploads, native title/key transitions, history reveal, notification dismissal,
+boot/barcode and battery transitions. Idle Sleep uses native mouth opacity 51/255;
+board sleep/reset fades the display over 150 ms and LEDs over 600 ms.
+Coffee stage/run flags follow status; a selected profile applies on the next
+Scale entry, as in firmware. Virtual P16/P17 keys are disabled while following a
+connected device because the BLE protocol has no physical-key command.
+
+FEE5 does not expose history entries/page, notification bitmap/color, countdown
+values, exact coffee elapsed time/grounds/tare, battery overlay phase, or local
+key/Idle gestures. Successful countdown/container/notification writes from this
+browser are mirrored for the current connection; unknown content stays blank
+with an explanation outside the display. Coffee timing is estimated from observed
+run/pause flags. Unbound devices use the runtime's sample pairing identity.
+These protocol limits prevent exact live screen mirroring; reconnect clears the
+session's preview data. No firmware source files are modified by the build.
+
+Validate the bundled Wasm with `npm test`. With the original source checkout,
+`node scripts/test-runtime-upstream.mjs /path/to/t100/web_runtime` also runs
+20 upstream rendering contracts. Three older software-fade timing cases are
+excluded and replaced by PWM/settle assertions in `tests/runtime-parity.test.js`.
+Browser integration checks run with `npm run test:browser`.
 
 The prebuilt runtime and its source provenance are in `assets/runtime/README.txt`.
 Hosting must serve `.wasm` files and allow `wasm-unsafe-eval` plus same-origin

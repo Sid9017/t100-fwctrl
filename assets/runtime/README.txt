@@ -1,35 +1,33 @@
 T100 Web Runtime
 
-Vendored from bk-hw-temp/projects/t100/web_runtime (source revision 330e5df0).
-preview.wasm uses the original C renderer plus scripts/runtime-status.c, which
-adds preview_apply_status to select the reported FEE5 screen without fake key presses.
-Rebuild from this repository with:
+Rebuilt from bk-hw-temp/projects/t100/web_runtime and shared firmware sources,
+source checkout HEAD 9b729384dfdcb91562a778f2f19488b96f4023ae.
+
+Rebuild:
   node scripts/build-runtime.mjs /path/to/t100/web_runtime
 Set WASM_CC and, if needed, WASM_LD to clang and a native lld executable.
-The build depends on shared firmware C sources; it does not modify that repository.
-Only assets referenced by the runtime transport are included.
+The build uses temporary adapted sources and does not modify the firmware repo.
 
-Local adaptations: English labels, collapsible controls, embedding layout,
-readiness flag, openScale dispatch, and corrected unit selector conversion.
-The parent src/web/preview.js subscribes to BLE status and weight notifications. It converts
-FEE1 values to grams and feeds them one way into the local simulation. The
-simulator does not send BLE commands or claim to reproduce the full live device
-state. Device controls, binding, credentials and OAD remain in the parent app.
+Adapters:
+- scripts/runtime-parity.mjs: replaces legacy host software fades with firmware
+  PWM/40 ms dark-upload behavior, native KCal keys and Idle Sleep opacity.
+- scripts/runtime-status.c: FEE5 snapshots, screen transitions, coffee stage/run,
+  board LCD/LED fades, battery/history dark upload and missing-content handling.
+- scripts/runtime-boot.c: shared native boot/barcode drawing with opaque frames
+  and firmware PWM fades. The pairing barcode still uses sample identity.
+- app.js: browser transport, canvas brightness for PWM, English labels and layout.
 
-The parent controls now always operate the connected Bluetooth device. The
-preview-only controls remain hidden inside the runtime and are not mounted in
-the parent. Weight is rendered only in Wasm; the duplicate numeric display,
-control target selector, device details and device lights UI have been removed.
-The both-key button and weighing surface press simulation are also removed.
+BLE controls remain in the parent app. FEE1 weight and FEE5 status flow one way
+into Wasm; virtual keys are disabled while connected. Successful countdown,
+container and immediate notification writes are mirrored for this connection.
+Unknown history/countdown/notification content is blank, explained outside the
+canvas. FEE5 lacks exact coffee elapsed time, tare/session totals, history page,
+notification bitmap/color, battery overlay phase and local gesture state.
+Therefore the preview is not an exact screen capture; see the main README.
 
-FEE5 drives Idle, scale/profile and sleep/wake. Incoming weight never changes the
-scene. Countdown, history and notification content is absent from FEE5: these
-screens show their reported name rather than demo values. Coffee phase/flags are
-reported in the status label; exact elapsed time, flow and animations are not
-available from this packet and are not a live screen capture.
-
-Rebuilt against the updated notify PWM sources in the original working tree.
-Notification transitions use notify_ui_pwm_request/backlight and retain pixels
-through each 150 ms ramp. The status bridge calls the notify lifecycle and waits
-for exit/return-in rather than assigning scene directly. Status-only notices
-use an empty preview bubble because FEE5 has no text bitmap or color.
+Verification:
+  npm test
+  node scripts/test-runtime-upstream.mjs /path/to/t100/web_runtime
+  npm run test:browser
+The upstream check runs 20 unchanged drawing contracts. Three legacy software
+fade cases are replaced by explicit firmware PWM timing/pixel tests locally.

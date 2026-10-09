@@ -3,8 +3,8 @@ import { wheel } from './history-controls.js';
 export async function mountModeWheel() {
   const host=document.getElementById('modeWheel');
   const select=document.getElementById('simCoffeeModeSelect');
-  const items=[{value:'3',label:'KCal',page:0},{value:'0',label:'Kitchen',page:6},
-    {value:'1',label:'Espresso',page:12},{value:'2',label:'PourOver',page:16}];
+  const items=[{value:'3',label:'KCal',mode:0},{value:'0',label:'Kitchen',mode:1},
+    {value:'1',label:'Espresso',mode:2},{value:'2',label:'PourOver',mode:3}];
   // Render the original mode-title frames in an isolated Wasm instance so the
   // live device preview is untouched. The labels use the firmware's own pixels.
   try {
@@ -15,7 +15,7 @@ export async function mountModeWheel() {
     const canvas=document.createElement('canvas');canvas.width=320;canvas.height=80;
     const ctx=canvas.getContext('2d');
     for(const item of items) {
-      x.preview_set_reference(item.page);x.preview_render();
+      x.preview_reset();x.preview_set_mode(item.mode);x.preview_key(0);x.preview_render();
       const pixels=new Uint16Array(x.memory.buffer,x.preview_pixels(),25600);
       const frame=ctx.createImageData(320,80);
       // The firmware glyphs are antialiased against black. Recover their

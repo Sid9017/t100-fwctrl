@@ -25,6 +25,7 @@ export class BrowserConsole extends DeviceActions {
     return () => this.listeners.get(event).delete(callback);
   }
   emit(event,payload) { for (const listener of this.listeners.get(event)||[]) listener(payload); }
+  _previewCommit(name, data) { this.emit('PreviewCommit', {name, ...data}); }
   _actionLog(line, options={}) { this.emit('SimActionLog',{line, ...options}); }
   listDevices() { return [...this.devices.values()].map(entry=>entry.ui); }
   selectDevice() {
@@ -56,6 +57,7 @@ export class BrowserConsole extends DeviceActions {
       await this.disconnect();
       const connection=await this.adapter.connect(entry.device);
       this.connection=connection; this.entry=entry;
+      this.emit('PreviewReset', {deviceId:entry.ui.id});
       entry.ui.deviceStatus=null;
       connection.native.on('disconnect',()=>{
         if (this.connection!==connection) return;

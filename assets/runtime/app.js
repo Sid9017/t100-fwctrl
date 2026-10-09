@@ -7,6 +7,7 @@ const frame = context.createImageData(320, 80);
 let module;
 let api;
 let liveStatus = null;
+let pendingNotice = null;
 const drawerImages = ['diet-tutorial-1.png', 'kitchen-tutorial-1.png', 'espresso-tutorial-1.png', 'pourover-tutorial-1.png'];
 let activeGesture = null;
 let idleGesture = null;
@@ -42,6 +43,7 @@ function endIdleGesture(side, cancel = false) {
 }
 const WEIGH_LIMIT_G = 5000;
 function startGesture(side) {
+  if (liveStatus) return; // The wire protocol has no remote physical-key event.
   if (beginIdleGesture(side)) return;
   if (!api || activeGesture || api.introActive()) return;
   if (api.scene() !== 1 || side === 'both') { dispatch('key', { key: side }); return; }
@@ -104,8 +106,12 @@ function cancelGesture(side) {
 }
 function sync() {
   if (!module) return;
-  if (liveStatus) module.preview_apply_status(liveStatus.screen, liveStatus.coffee?.profile ?? -1,
-    liveStatus.coffee?.primaryTargetMg ?? -1, liveStatus.coffee?.waterTargetMg ?? -1);
+  if (pendingNotice && liveStatus?.screen === 6 && module.notify_ui_prepare_update() >= 0) {
+    const gray = new Uint8Array(module.memory.buffer, module.preview_notify_gray(), 5088);
+    gray.fill(0); gray.set(pendingNotice.gray);
+    module.preview_remote_notify(pendingNotice.colorRgb565);
+    pendingNotice = null;
+  }
   api.render();
   const src = new Uint16Array(module.memory.buffer);
   const start = api.pixels() >>> 1;
@@ -118,15 +124,11 @@ function sync() {
     frame.data[p + 3] = 255;
   }
   context.putImageData(frame, 0, 0);
-  // FEE5 contains scene metadata, not countdown values, history entries or text.
-  // Display the reported scene without inventing device content from demo data.
-  if (liveStatus && [3,5].includes(liveStatus.screen) && !module.notify_ui_backlight_active()) {
-    context.fillStyle='#000'; context.fillRect(0,0,320,80);
-    context.fillStyle='#fff'; context.font='18px sans-serif'; context.textAlign='center';
-    context.fillText(({3:'Countdown',5:'History',6:'Notification'})[liveStatus.screen],160,36);
-    context.font='11px sans-serif'; context.fillStyle='#999'; context.fillText('Content unavailable in status',160,57);
-  }
-  panel.style.filter = `brightness(${liveStatus?.screen === 2 || [5,6].includes(liveStatus?.mode) ? 0 : api.backlight() / 255})`;
+  panel.style.filter = `brightness(${api.backlight() / 255})`;
+  const missing = module.preview_remote_missing();
+  window.t100Preview.missingContent = missing & 1 ? 'Countdown values are not reported by this device.'
+    : missing & 2 ? 'History records and page index are not reported by this device.'
+    : missing & 4 ? 'Notification content is not reported by this device.' : '';
   $('sceneText').textContent = liveStatus ? ({1:'Idle',2:'Idle sleep',3:'Countdown',4:'Scale',5:'History',6:'Notification',7:'Coffee scale'}[liveStatus.screen] || 'Unknown') : module.preview_boot_active() ? 'Pairing' : api.reference() >= 0 ? 'Reference screen' : ['Idle', 'Scale', 'Countdown', 'History', 'Notification'][api.scene()];
   $('referencePage').value = String(api.reference());
   $('mode').value = String(api.currentMode());
@@ -137,8 +139,9 @@ function sync() {
   if ($('weight').ownerDocument.activeElement !== $('weight')) $('weight').value = grams.toFixed(1);
   const level = api.lightLevel();
   for (const [id, active] of [['leftLed', api.leftLight()], ['rightLed', api.rightLight()]]) {
+    $(id).disabled = !!liveStatus;
     $(id).classList.toggle('on', !!active && level > 0);
-    $(id).style.opacity = id === 'leftLed' ? api.leftOpacity() / 255 : 1;
+    $(id).style.opacity = (id === 'leftLed' ? api.leftOpacity() / 255 : 1) * level / 100 * module.preview_power_led_opacity() / 255;
     $(id).style.setProperty('--glow', `${Math.round(level / 5)}px`);
   }
 }
@@ -151,8 +154,18 @@ function dispatch(type, data = {}) {
       if (data.hold) api.keyHold(key); else api.key(key);
       break;
     }
-    case 'detachStatus': liveStatus = null; module.preview_detach_status(); break;
-    case 'status': liveStatus = data; break;
+    case 'detachStatus': liveStatus = null; pendingNotice = null; api.reset(); break;
+    case 'status':
+      liveStatus = data;
+      module.preview_apply_device_status(data.screen, data.phase ?? 0, data.mode ?? 2, data.flags ?? 0,
+        data.coffee?.schema ?? 0, data.coffee?.profile ?? -1, data.coffee?.stage ?? 0,
+        data.coffee?.uiPhase ?? 0, data.coffee?.primaryTargetMg ?? -1, data.coffee?.waterTargetMg ?? -1);
+      break;
+    case 'committed':
+      if (data.name === 'countdown') module.preview_remote_countdown(data.currentKcal, data.targetKcal);
+      else if (data.name === 'container') api.containerTopic(data.grams == null ? 0 : 1, Math.round((data.grams || 0)*1000));
+      else if (data.name === 'notify') pendingNotice = data;
+      break;
     case 'pairing': liveStatus = null; module.preview_detach_status(); api.reset(); api.boot(); api.tick(10000); break;
     case 'openScale': $('openScale').click(); break;
     case 'mode': api.mode(validNumber(data.mode, 0, 3)); break;

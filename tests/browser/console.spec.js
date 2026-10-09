@@ -58,10 +58,10 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
       disconnect:()=>{device.gatt.connected=false;device.dispatchEvent(new Event('gattserverdisconnected'));},
       getPrimaryServices:async()=>window.mock.bound?services:[...services,...(window.mock.requests.at(-1).optionalServices.includes(bindService.uuid)?[bindService]:[])]};
     window.mock.disconnect=()=>device.gatt.disconnect();
-    window.mock.notifyStatus=(screen,profile)=>{
+    window.mock.notifyStatus=(screen,profile,options={})=>{
       const c=chars.get('fee5');
       const bytes=new Uint8Array(profile == null ? 8 : 20);
-      bytes.set([bytes.length,screen,0,2,window.mock.bound?1:0,0,0,0]);
+      bytes.set([bytes.length,screen,options.phase??0,options.mode??2,window.mock.bound?1:0,0,0,0]);
       if(profile!=null){bytes[8]=1;bytes[9]=profile;new DataView(bytes.buffer).setUint32(12,15000,true);new DataView(bytes.buffer).setUint32(16,240000,true);}
       c.value=new DataView(bytes.buffer);c.dispatchEvent(new Event('characteristicvaluechanged'));
     };
@@ -355,7 +355,7 @@ test('FEE5 controls Idle, scale modes and sleep without weight changing the scre
   await expect(runtime.locator('#sceneText')).toHaveText('Idle');
   await page.evaluate(()=>mock.notifyStatus(2));
   await expect(runtime.locator('#sceneText')).toHaveText('Idle sleep');
-  await expect(runtime.locator('#panel')).toHaveCSS('filter','brightness(0)');
+  await expect(runtime.locator('#panel')).toHaveCSS('filter','brightness(1)');
   await page.evaluate(()=>mock.notifyStatus(1));
   await expect(runtime.locator('#panel')).toHaveCSS('filter','brightness(1)');
   for(const [screen,label] of [[3,'Countdown'],[5,'History'],[6,'Notification']]) {
@@ -582,4 +582,32 @@ test('companion layout loads its artwork and keeps controls accessible across vi
   await expect(page.locator('#screenTrack')).toHaveCSS('transition-duration','0s');
   await page.getByRole('button',{name:'Controls screen',exact:true}).click();
   await expect(page.locator('#viewTest')).toHaveAttribute('aria-hidden','false');
+});
+
+test('live preview uses committed countdown and notify pixels, keeps unknown history out of the canvas, and clears on reconnect',async({page})=>{
+  await mockBluetooth(page,{initialScreen:1});await connect(page);
+  const runtime=page.frameLocator('#runtimeFrame');
+  await expect(runtime.locator('#leftLed')).toBeDisabled();
+  await expect(runtime.locator('#rightLed')).toBeDisabled();
+  await page.locator('#simCurrentKcalInput').fill('-180');await page.locator('#simTargetKcalInput').fill('1800');
+  await page.locator('#simKcalUpdateBtn').click();await expect(page.locator('#simLog')).toContainText('Countdown updated');
+  await page.evaluate(()=>mock.notifyStatus(3,undefined,{phase:1}));
+  await expect.poll(()=>page.evaluate(()=>document.querySelector('#runtimeFrame').contentWindow.t100Preview.missingContent)).toBe('');
+  await expect(runtime.locator('#panel')).toHaveCSS('filter','brightness(1)');
+  const lit=()=>runtime.locator('#panel').evaluate(el=>el.getContext('2d').getImageData(0,0,320,80).data.some((v,i)=>i%4!==3&&v>0));
+  await expect.poll(lit).toBe(true);
+  await page.evaluate(()=>mock.notifyStatus(5));
+  await expect(page.locator('#previewSource')).toContainText('History records and page index');
+  await expect.poll(lit).toBe(false);
+  await page.locator('#simNotifyTextInput').fill('HELLO');await page.locator('#simNotifyBtn').click();
+  await expect(page.locator('#simLog')).toContainText('Notify sent',{timeout:15000});
+  await page.evaluate(()=>mock.notifyStatus(6));
+  await expect.poll(()=>page.evaluate(()=>document.querySelector('#runtimeFrame').contentWindow.t100Preview.missingContent)).toBe('');
+  await expect.poll(lit).toBe(true);
+  await page.evaluate(()=>mock.disconnect());
+  await page.getByRole('button',{name:'Select Bluetooth Device'}).click();
+  await expect(page.locator('#simStateText')).toHaveText('Connected');
+  await page.evaluate(()=>mock.notifyStatus(3,undefined,{phase:1}));
+  await expect(page.locator('#previewSource')).toContainText('Countdown values are not reported');
+  await expect.poll(lit).toBe(false);
 });
