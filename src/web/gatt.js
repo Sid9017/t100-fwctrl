@@ -13,14 +13,16 @@ export function uuid(value) {
 // can expose either the canonical UUID or the raw/reversed 16-byte form.
 export function serviceUuidForms(value) {
   const canonical = uuid(value);
+  if (['fee0', 'ffc0'].includes(String(value).toLowerCase())) {
+    return [canonical, `f000${String(value).toLowerCase()}-0451-4000-b000-000000000000`];
+  }
   if (!canonical.startsWith('6b30')) return [canonical];
   const bytes = Buffer.from(canonical.replaceAll('-', ''), 'hex');
   bytes.subarray(0,4).reverse(); bytes.subarray(4,6).reverse(); bytes.subarray(6,8).reverse();
   return [canonical, uuid(bytes.toString('hex')), uuid(Buffer.from(bytes).reverse().toString('hex'))];
 }
 export const optionalServices = [...new Set(Object.entries(UUIDS.services)
-  .filter(([key]) => key !== 'genericAccess').flatMap(([, value]) => serviceUuidForms(value))
-  .concat(['fee0', 'ffc0'].map(value => `f000${value}-0451-4000-b000-000000000000`)))];
+  .filter(([key]) => key !== 'genericAccess').flatMap(([, value]) => serviceUuidForms(value)))];
 export function deviceOptions() {
   const filter = { namePrefix: 'YD-', manufacturerData: [{
     companyIdentifier: 0x6000,
@@ -97,9 +99,25 @@ export class WebGattAdapter extends GattAdapter {
     connection.queue = run.catch(() => {});
     return run;
   }
-  discoverServices(connection) {
-    return this.operation(connection, async () => (await connection.server.getPrimaryServices())
-      .map(native => ({ uuid: native.uuid, native })));
+  discoverServices(connection, serviceUuids = []) {
+    return this.operation(connection, async () => {
+      if (!serviceUuids.length) return (await connection.server.getPrimaryServices())
+        .map(native => ({ uuid: native.uuid, native }));
+      const services = new Map();
+      let permissionError;
+      for (const value of serviceUuids) for (const candidate of serviceUuidForms(value)) {
+        try {
+          const native = await connection.server.getPrimaryService(candidate);
+          services.set(native.uuid, { uuid: native.uuid, native });
+        } catch (error) {
+          // An older grant may include only one alias. Still try the other one.
+          if (error.name === 'SecurityError' || error.name === 'NotAllowedError') permissionError = error;
+          else if (error.name !== 'NotFoundError') throw error;
+        }
+      }
+      if (!services.size && permissionError) throw new Error(`Bluetooth service access denied. Re-select the device to grant access: ${permissionError.message}`);
+      return [...services.values()];
+    });
   }
   discoverCharacteristics(connection, service) {
     return this.operation(connection, async () => (await service.native.getCharacteristics())

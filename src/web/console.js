@@ -229,12 +229,34 @@ export class BrowserConsole extends DeviceActions {
     return this.runGattAction('OAD',async abortRef=>{
       const started=Date.now();
       const connection=this.requireConnection();
-      const {services,characteristics}=await this.discoverAll(connection);
+      const {services,characteristics}=await this.discoverOad(connection);
       const fileBuf=Buffer.from(await file.arrayBuffer());
       const result=await oad.runOadDownload({adapter:this.adapter,connection,services,characteristics,fileBuf,abortRef,
         onProgress:progress=>this.emit('SimOadProgress',{progress})});
       await this.disconnect();this.emit('SessionIdle',{state:'idle'});
       return {...result,message:'OAD acknowledged by the device. Reconnect to verify firmware.',elapsedMs:Date.now()-started};
     },45*60*1000);
+  }
+  async discoverOad(connection) {
+    const cached = await this.discoverAll(connection);
+    const complete = discovery => uuidHelpers.findGattService(discovery.services, GATT.oad.service) &&
+      [GATT.oad.imageIdentify, GATT.oad.chunkX].every(id =>
+        uuidHelpers.findGattCharacteristic(discovery.characteristics, GATT.oad.service, id));
+    if (complete(cached)) return cached;
+    // Some browser stacks omit a service from enumeration. Query both OAD bases
+    // explicitly rather than treating the initial connection cache as definitive.
+    const services = await this.adapter.discoverServices(connection, [GATT.oad.service]);
+    const characteristics = [];
+    for (const service of services) characteristics.push(...await this.adapter.discoverCharacteristics(connection, service));
+    const discovery = {services, characteristics};
+    if (!complete(discovery)) {
+      const visible = [...new Set([...cached.services, ...services].map(s => s.uuid))].join(', ') || '(none)';
+      throw new Error(`OAD FFC0 / f000ffc0-0451-4000-b000-000000000000 with FFC1/FFC3 is unavailable. Visible services: ${visible}. Re-select the device to grant OAD access; if it persists, check the running firmware's GATT services.`);
+    }
+    connection.discovery = {
+      services: [...cached.services.filter(s => !uuidHelpers.findGattService([s], GATT.oad.service)), ...services],
+      characteristics: [...cached.characteristics.filter(c => !uuidHelpers.findGattService([{uuid:c.serviceUuid}], GATT.oad.service)), ...characteristics],
+    };
+    return connection.discovery;
   }
 }
