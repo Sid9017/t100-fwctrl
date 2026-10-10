@@ -7,12 +7,11 @@ import notifyWire from '../vendor/ble/core/fee0-notify-wire.js';
 import notifyUpload from '../vendor/ble/core/fee0-notify-upload.js';
 import historyWire from '../vendor/ble/core/fee0-kcal-hist-wire.js';
 import morphUpload from '../vendor/ble/morph_theme/upload.js';
-import chunkx from '../vendor/ble/oad/chunkx.js';
+import mtuProbe from '../vendor/ble/core/mtu.js';
 import scaleWire from '../vendor/ble/core/fee0-scale-wire.js';
 import recipeWire from '../vendor/ble/core/fee0-coffee-recipe-wire.js';
 import profileWire from '../vendor/ble/core/fee0-weighing-profile-wire.js';
 import lightWire from '../vendor/ble/core/fee0-light-control-wire.js';
-import oadDownload from '../vendor/ble/oad/download.js';
 const { buildContainerWeightPayload } = containerWire;
 
 const { GATT, TOPICS, UI_NAV_TARGETS } = protocol;
@@ -45,7 +44,7 @@ const {
   estimateMorphThemeUploadTimeoutMs,
   resolveChunkDataMax,
 } = morphUpload;
-const { waitForNegotiatedMtu } = chunkx;
+const { waitForNegotiatedMtu } = mtuProbe;
 
 const { formatFee0ScaleReading, FEE0_SCALE_UNIT_G, FEE0_SCALE_UNIT_OZ } = scaleWire;
 const { buildCoffeeRecipePayload } = recipeWire;
@@ -53,7 +52,6 @@ const {
   buildWeighingProfilePayload,
 } = profileWire;
 const { buildLightControlPayload } = lightWire;
-const { runOadDownload } = oadDownload;
 const VENDOR_TOPIC_SETTLE_MS=400, KCAL_HIST_CHUNK_SETTLE_MS=10,
 KCAL_HIST_MTU_PROBE_MS=1000, MORPH_THEME_CHUNK_SETTLE_MS=10,
 MORPH_THEME_MTU_PROBE_MS=1000, GATT_ACTION_TIMEOUT_MS=15000;

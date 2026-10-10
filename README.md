@@ -60,7 +60,7 @@ or CDN dependency. The app uses native CSS and retains the existing JavaScript s
 - Notification text rasterization and bitmap BEGIN/CHUNK/COMMIT upload.
 - KCal history records, rating, UUID/timestamp and up to three food photos,
   using the original RGB565 + alpha framing.
-- OAD firmware file selection, ChunkX upload, retransmission and progress.
+- Signed OAD BIN + manifest selection, binding authorization, offset recovery and device-confirmed commit.
   Success requires a device acknowledgement; a disconnect alone is not success.
 - Authenticated reset and public factory reset, with local credential cleanup
   after a successful command write.
@@ -92,6 +92,13 @@ Use desktop Chrome / Edge or Android Chrome over HTTPS. Localhost is allowed for
 local development; a phone opening a computer's HTTP LAN address is not a secure
 context. Bluetooth must be enabled and browser/system access allowed.
 
+Signed OAD uses service `0bb0e5f9-5b14-401c-a2a9-b2fa83eb0b5c`, with
+control, data and status characteristics. It requires current binding auth and a
+manufacturer-signed BIN + 128-byte manifest. First install the new **merge_crc**
+firmware and compatible BIM by cable; APP-only OAD cannot update BIM. Old TI OAD
+firmware is unsupported by this client. The old TI UUID is on the
+[Web Bluetooth blocklist](https://github.com/WebBluetoothCG/registries/blob/master/gatt_blocklist.txt).
+
 The browser picker does not expose advertisement bytes, MAC addresses or RSSI.
 Scanning always includes all T100 devices: manufacturer subtype `P` and product 1,
 with no version or Shell ID restriction. Devices from other product families are
@@ -101,7 +108,8 @@ selection or filter.
 All GATT calls are serialized. Timeouts disconnect the old session so unfinished
 work cannot continue writing into a new session. The original upload packet
 formats, CRCs and pacing are retained. Web Bluetooth does not expose ATT MTU;
-the original 512-byte fallback is used for ChunkX/upload sizing. Large writes and
+signed OAD therefore uses 16-byte data payloads / 20-byte writes. Other image
+upload workflows retain their existing 512-byte sizing fallback. Large writes and
 actual flash behavior still need verification on each target browser/platform and
 physical T100 firmware version.
 
@@ -205,68 +213,49 @@ and each 40x40 RGB565+alpha image are unchanged. Firmware handles Flash migratio
 the browser does not migrate device records.
 
 
-## Latest OAD service
+## Signed OAD publication
 
-The third screen automatically downloads and selects the latest validated OAD
-on connection. It never starts flashing automatically. Manual file selection
-cancels the automatic fetch; disconnect and a new connection invalidate stale
-requests. Missing releases, network errors or invalid images leave manual
-selection available. Downloads have a 20-second timeout and verify the APP-only
-header, version, byte length and SHA256 before becoming selectable.
+The third screen automatically selects the latest verified signed release after
+connection. Manual selection accepts the BIN and `.manifest` together. Both the
+server and browser independently verify the full-image SHA256 and ECDSA P-256
+signature against the pinned public publishing key ID 1. Private signing keys are
+never received by the browser, server or device. Transfer completion stays below
+100% until the device confirms COMMITTED (state 6); reconnect to verify the running
+firmware version. Host, browser mocks and ARM firmware simulations do not replace
+real-device BLE/reset testing.
 
-Netlify Functions expose these same-origin endpoints:
+Only signed OTA endpoints are registered. The old unsigned upload and download
+endpoints and TI/ChunkX client are removed. Existing unsigned storage is not
+imported into the new `t100-signed-ota` Netlify Blobs store.
 
-- `POST /api/ota/latest`: authenticated multipart upload; fields `firmware`
-  (APP-only `.bin`) and `metadata` (JSON string). Requires
-  `Authorization: Bearer <token>` and `Idempotency-Key`.
-- `GET /api/ota/latest`: latest metadata plus `downloadUrl`, or 404 before the
-  first publish. Never cached.
-- `GET /api/ota/download/<sha256>`: exact latest binary, or 404 if that digest
-  has been replaced. The client retries metadata once after this 404.
+- `POST /api/ota/signed/latest`: authenticated multipart `firmware`, `manifest`,
+  `metadata`; Bearer `T100_OTA_UPLOAD_TOKEN` and Idempotency-Key required.
+- `GET /api/ota/signed/latest`: schema 2 metadata with `downloadUrl` and
+  `manifestUrl`, or 404 before the first signed publication.
+- `GET /api/ota/signed/download/<sha256>/<manifestSha256>`: full APP-only BIN.
+- `GET /api/ota/signed/manifest/<sha256>/<manifestSha256>`: detached 128-byte manifest.
 
-Metadata schema 1 contains `product: "t100"`, `kind: "oad"`, `version` (lowercase
-`0xNNNN` from the image header), `commitSha` (40 lowercase hex characters),
-`ref: "refs/heads/main"`, `workflow: ".github/workflows/t100-firmware.yml"`,
-`runId` (decimal string), `runNumber`/`runAttempt` (positive integers), `builtAt`
-(UTC ISO8601 ending in Z), `size` (bytes), and `sha256` (64 lowercase hex
-characters). No extra metadata fields are accepted. The Idempotency-Key is
-SHA256 of UTF-8 `workflow:runId:runAttempt:sha256`. The service rejects merged
-flash images and accepts APP-only images up to 240 KiB, aligned to 16 bytes.
-The bearer token authorizes publication; metadata is not a GitHub signature.
+The pair is stored in one strongly consistent conditional write. Replacement
+invalidates both old URLs. Clients retry once if replacement occurs while fetching
+the pair. The server rejects rollback and same-counter conflicts with 409;
+identical retries return 200 with `status: "unchanged"`.
 
-A site-wide Netlify Blobs store `t100-ota` uses strong consistency and conditional
-writes. A single `latest` entry atomically contains metadata and the binary, so
-readers cannot mix versions. The `(runNumber, runAttempt)` sequence must belong
-to the fixed trusted workflow. Newer releases replace that entry; older releases
-return 200 `stale`, exact repeats return 200 `unchanged`, and conflicting reuse
-of an idempotency key or current sequence returns 409. Small hash-only receipts
-persist for idempotency; they contain no old firmware. Only one firmware copy
-is retained. Receipt records are intentionally not pruned automatically.
+Metadata, receipt fields, release counter and device protocol are documented in
+[docs/signed-ota.md](docs/signed-ota.md). Downloads use a 20-second timeout, bounded
+responses and signature validation. CI must finish signing the final APP-only bin
+before publishing and must validate the server's JSON receipt.
 
-Deployment configuration (not performed automatically):
+Netlify setup:
 
-1. Deploy this repository to the existing Netlify site, including its functions.
-2. Set `T100_OTA_UPLOAD_TOKEN` in Netlify environment variables, Functions scope,
-   production context only. Use a randomly generated secret of at least 32
-   characters. Do not put it in frontend code, git or `netlify.toml`.
-3. Put the identical token in the firmware repo's Actions Secret
-   `T100_OTA_UPLOAD_TOKEN`. Set Actions Variable `T100_OTA_UPLOAD_URL` to
-   `https://t100-ctrl.netlify.app/api/ota/latest`.
-4. Once the endpoint is deployed and ready for integration, enable Actions
-   Variable `T100_OTA_ENABLED=true`. The CI task owns main-only publishing and
-   the explicit `publish_ota=true` gate for manual runs. Keep this switch off
-   until deployment is confirmed.
+1. Link this repository with empty Base / Package directories, build command
+   `npm run build`, publish directory `dist` and the configured Functions directory.
+2. Keep `T100_OTA_UPLOAD_TOKEN` in Netlify Functions environment, production
+   context, and redeploy when configuration changes. Keep tokens out of Git.
+3. In firmware GitHub Actions, set `T100_SIGNED_OTA_UPLOAD_URL` to
+   `https://t100-ctrl.netlify.app/api/ota/signed/latest` after deployment has been
+   verified. Configure the matching HTTP token and private publishing key in
+   GitHub Actions Secrets. `T100_OTA_ENABLED` controls publication in that repo.
 
-The metadata and download endpoints are public; firmware must be suitable for
-public distribution. No GitHub credentials are delivered to the browser.
-Netlify supplies Blobs credentials to deployed functions automatically. Blobs
-usage is subject to the site's Netlify plan. See [Netlify Blobs documentation](https://docs.netlify.com/build/data-and-storage/netlify-blobs/)
-for conditional writes and consistency.
-
-`npm run dev` serves the same API using an in-memory store: local uploads are
-lost when that process restarts and never affect production. Set the local
-`T100_OTA_UPLOAD_TOKEN` environment variable to test publishing; without it POST
-returns 503. Restart an already running preview server after these changes.
-`npm test` covers upload validation, authorization, idempotency, stale/concurrent
-publishes, replacement, download races and corrupted bytes. Browser tests cover
-automatic selection, manual fallback and request cancellation.
+`npm run dev` serves the same signed routes with a process-local in-memory store.
+Set its `T100_OTA_UPLOAD_TOKEN` to test authenticated publication. Tests use
+independent disposable signing keys and never access the production private key.

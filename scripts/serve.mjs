@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { createOtaHandler } from '../server/ota.js';
+import { createSignedOtaHandler } from '../server/signed-ota.js';
 import { MemoryStore } from '../server/memory-store.js';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -11,14 +11,14 @@ const root = fileURLToPath(new URL('../dist/',import.meta.url));
 const port = Number(process.env.PORT || 8766);
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
   '.wasm':'application/wasm','.ttf':'font/ttf','.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.bin':'application/octet-stream'};
-const otaStore=new MemoryStore();
-const ota=createOtaHandler({getStore:()=>otaStore,token:()=>process.env.T100_OTA_UPLOAD_TOKEN});
+const signedStore=new MemoryStore();
+const signedOta=createSignedOtaHandler({getStore:()=>signedStore,token:()=>process.env.T100_OTA_UPLOAD_TOKEN});
 createServer(async(req,res)=>{
   try {
     if(new URL(req.url,'http://localhost').pathname.startsWith('/api/ota/')) {
       const request=new Request(`http://localhost${req.url}`,{method:req.method,headers:req.headers,
         ...(!['GET','HEAD'].includes(req.method)?{body:Readable.toWeb(req),duplex:'half'}:{})});
-      const response=await ota(request);
+      const response=await signedOta(request);
       res.writeHead(response.status,Object.fromEntries(response.headers));
       res.end(Buffer.from(await response.arrayBuffer()));return;
     }

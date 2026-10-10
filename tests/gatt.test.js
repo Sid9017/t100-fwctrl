@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { WebGattAdapter, deviceOptions, uuid } from '../src/web/gatt.js';
+import {SIGNED_OTA_UUIDS as U} from '../src/web/signed-ota-format.js';
 import { BrowserConsole } from '../src/web/console.js';
 
 test('picker grants required services and matches every T100 shell and advertisement version',()=>{
   const options=deviceOptions();assert.ok(options.optionalServices.includes(uuid('fee0')));
-  assert.ok(options.optionalServices.includes('f000ffc0-0451-4000-b000-000000000000'));
+  assert.ok(options.optionalServices.includes(U.service));
+  assert.ok(!options.optionalServices.some(s=>s.includes('ffc0')));
   assert.deepEqual([...options.filters[0].manufacturerData[0].mask],[255,0,255]);
   const filter=options.filters[0];
   assert.equal(filter.namePrefix,'YD-');
@@ -43,33 +45,17 @@ test('action timeout aborts and disconnects before a subsequent action can run',
   await assert.rejects(service.runGattAction('again',async()=>{}),/Connect/);
 });
 
-test('OAD discovery queries both authorized UUID bases when enumeration missed it', async()=>{
-  const full='f000ffc0-0451-4000-b000-000000000000';
-  const calls=[];
-  const native={uuid:full,async getCharacteristics(){return ['ffc1','ffc3'].map(id=>({uuid:`f000${id}-0451-4000-b000-000000000000`,properties:{write:true,notify:true}}));}};
-  const connection={active:true,queue:Promise.resolve(),discovery:{services:[{uuid:uuid('fee0')}],characteristics:[]},server:{connected:true,async getPrimaryService(id){
-    calls.push(id);
-    if(id===full)return native;
-    throw Object.assign(new Error('not granted'),{name:'SecurityError'});
-  }}};
-  const service=new BrowserConsole();
-  const discovered=await service.discoverOad(connection);
-  assert.deepEqual(calls,[uuid('ffc0'),full]);
-  assert.equal(discovered.characteristics.length,2);
-  assert.ok(discovered.services.some(s=>s.uuid===full));
-  await service.discoverOad(connection);
-  assert.equal(calls.length,2);
+test('signed OAD discovers the exact new UUID when connection enumeration omitted it',async()=>{
+  const native={uuid:U.service,async getCharacteristics(){return [U.control,U.data,U.status].map(id=>({uuid:id,properties:{write:true,read:true,notify:true}}));}};
+  const calls=[],connection={active:true,queue:Promise.resolve(),discovery:{services:[],characteristics:[]},server:{connected:true,async getPrimaryService(id){calls.push(id);return native;}}};
+  const service=new BrowserConsole();const result=await service.discoverSignedOad(connection);
+  assert.deepEqual(calls,[U.service]);assert.equal(result.characteristics.length,3);
 });
-
-test('OAD missing-service error reports discovered UUIDs without claiming firmware is disabled',async()=>{
-  const service=new BrowserConsole();
-  service.adapter.discoverServices=async()=>[];
-  const connection={discovery:{services:[{uuid:uuid('fee0')}],characteristics:[]}};
-  await assert.rejects(service.discoverOad(connection),error=>error.message.includes(uuid('fee0'))&&error.message.includes('f000ffc0'));
+test('old devices require cable installation and have no unsigned fallback',async()=>{
+  const service=new BrowserConsole();service.adapter.discoverServices=async()=>[];
+  await assert.rejects(service.discoverSignedOad({discovery:{services:[],characteristics:[]}}),/merge_crc.*by cable/);
 });
-
-test('targeted OAD discovery preserves transport failures',async()=>{
-  const adapter=new WebGattAdapter();
-  const connection={active:true,queue:Promise.resolve(),server:{connected:true,async getPrimaryService(){throw Object.assign(new Error('link lost'),{name:'NetworkError'});}}};
-  await assert.rejects(adapter.discoverServices(connection,['ffc0']),/link lost/);
+test('targeted discovery preserves transport errors',async()=>{
+  const adapter=new WebGattAdapter(),connection={active:true,queue:Promise.resolve(),server:{connected:true,async getPrimaryService(){throw Object.assign(new Error('link lost'),{name:'NetworkError'});}}};
+  await assert.rejects(adapter.discoverServices(connection,[U.service]),/link lost/);
 });

@@ -1794,11 +1794,12 @@ async function loadLatestFirmware() {
 
 refs.simFirmwareBtn.addEventListener('click', async () => {
   const request=++latestFirmwareRequest;
-  firmwareStatus.textContent='Select a local OAD file.';
+  firmwareStatus.textContent='Select the signed BIN and .manifest together.';
   const result = await window.mfgApi.selectSimFirmware();
   if(request!==latestFirmwareRequest||!state.connected)return;
-  if (!result.ok || result.canceled) return;
-  firmwareStatus.textContent='Local firmware selected.';
+  if(result.canceled)return;
+  if(!result.ok){firmwareStatus.textContent=result.message;return;}
+  firmwareStatus.textContent='Local signed firmware verified.';
   state.simFirmwarePath = result.path || '';
   updateSimFirmwarePreview();
   updateActionButtons();

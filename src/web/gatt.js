@@ -1,6 +1,7 @@
 import { Buffer } from 'buffer';
 import adapterContract from '../vendor/ble/adapters/gatt-adapter.js';
 import protocol from '../vendor/ble/protocol/index.js';
+import { SIGNED_OTA_UUIDS } from './signed-ota-format.js';
 const { GattAdapter } = adapterContract;
 const { UUIDS } = protocol;
 export function uuid(value) {
@@ -13,7 +14,7 @@ export function uuid(value) {
 // can expose either the canonical UUID or the raw/reversed 16-byte form.
 export function serviceUuidForms(value) {
   const canonical = uuid(value);
-  if (['fee0', 'ffc0'].includes(String(value).toLowerCase())) {
+  if (String(value).toLowerCase()==='fee0') {
     return [canonical, `f000${String(value).toLowerCase()}-0451-4000-b000-000000000000`];
   }
   if (!canonical.startsWith('6b30')) return [canonical];
@@ -22,7 +23,7 @@ export function serviceUuidForms(value) {
   return [canonical, uuid(bytes.toString('hex')), uuid(Buffer.from(bytes).reverse().toString('hex'))];
 }
 export const optionalServices = [...new Set(Object.entries(UUIDS.services)
-  .filter(([key]) => key !== 'genericAccess').flatMap(([, value]) => serviceUuidForms(value)))];
+  .filter(([key]) => key !== 'genericAccess').flatMap(([, value]) => serviceUuidForms(value)).concat(SIGNED_OTA_UUIDS.service))];
 export function deviceOptions() {
   const filter = { namePrefix: 'YD-', manufacturerData: [{
     companyIdentifier: 0x6000,
@@ -105,17 +106,23 @@ export class WebGattAdapter extends GattAdapter {
         .map(native => ({ uuid: native.uuid, native }));
       const services = new Map();
       let permissionError;
+      const deniedServices = [];
       for (const value of serviceUuids) for (const candidate of serviceUuidForms(value)) {
         try {
           const native = await connection.server.getPrimaryService(candidate);
           services.set(native.uuid, { uuid: native.uuid, native });
         } catch (error) {
           // An older grant may include only one alias. Still try the other one.
-          if (error.name === 'SecurityError' || error.name === 'NotAllowedError') permissionError = error;
+          if (error.name === 'SecurityError' || error.name === 'NotAllowedError') {
+            permissionError = error;
+            deniedServices.push(candidate);
+          }
           else if (error.name !== 'NotFoundError') throw error;
         }
       }
-      if (!services.size && permissionError) throw new Error(`Bluetooth service access denied. Re-select the device to grant access: ${permissionError.message}`);
+      if (!services.size && permissionError) throw Object.assign(
+        new Error(`Bluetooth service access denied. Re-select the device to grant access: ${permissionError.message}`),
+        {code:'gatt-service-access-denied', deniedServices, cause:permissionError});
       return [...services.values()];
     });
   }

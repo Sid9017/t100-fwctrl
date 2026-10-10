@@ -11,7 +11,7 @@
     "dev": "node scripts/serve.mjs",
     "build": "node scripts/build.mjs",
     "preview": "node scripts/serve.mjs --dist",
-    "test": "node --test tests/*.test.js src/vendor/ble/core/*.test.js src/vendor/ble/protocol/*.test.js src/vendor/ble/morph_theme/*.test.js src/vendor/ble/oad/*.test.js src/vendor/ble/session/*.test.js",
+    "test": "node --test tests/*.test.js src/vendor/ble/core/*.test.js src/vendor/ble/protocol/*.test.js src/vendor/ble/morph_theme/*.test.js src/vendor/ble/session/*.test.js",
     "test:browser": "playwright test"
   },
   "dependencies": {

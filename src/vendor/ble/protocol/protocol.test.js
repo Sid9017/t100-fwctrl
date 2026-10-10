@@ -27,10 +27,6 @@ test('protocol exports standard GATT services', () => {
 });
 
 test('protocol exports firmware update, bind, and NFC GATT services', () => {
-  assert.equal(GATT.oad.service, 'ffc0');
-  assert.equal(GATT.oad.imageIdentify, 'ffc1');
-  assert.equal(GATT.oad.block, 'ffc2');
-  assert.equal(GATT.oad.chunkX, 'ffc3');
   assert.equal(GATT.bind.service, '6b300001ef004a5b8dc12e9fcdef0001');
   assert.equal(GATT.bind.token, '6b300013ef004a5b8dc12e9fcdef0001');
   assert.equal(GATT.nfc.service, '6b300002ef004a5b8dc12e9fcdef0002');

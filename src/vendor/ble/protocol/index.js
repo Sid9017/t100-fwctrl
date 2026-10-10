@@ -9,7 +9,6 @@ const UUIDS = Object.freeze({
     deviceInfo: '180a',
     battery: '180f',
     cts: '1805',
-    oad: 'ffc0',
     bind: '6b300001ef004a5b8dc12e9fcdef0001',
     nfc: '6b300002ef004a5b8dc12e9fcdef0002',
   }),
@@ -23,9 +22,6 @@ const UUIDS = Object.freeze({
     ctsCurrentTime: '2a2b',
     firmwareRevision: '2a26',
     batteryLevel: '2a19',
-    oadImageIdentify: 'ffc1',
-    oadBlock: 'ffc2',
-    oadChunkX: 'ffc3',
     bindToken: '6b300013ef004a5b8dc12e9fcdef0001',
     nfcPeek: '6b300021ef004a5b8dc12e9fcdef0002',
     nfcPull: '6b300022ef004a5b8dc12e9fcdef0002',
@@ -113,12 +109,6 @@ const GATT = Object.freeze({
   battery: Object.freeze({
     service: UUIDS.services.battery,
     level: UUIDS.characteristics.batteryLevel,
-  }),
-  oad: Object.freeze({
-    service: UUIDS.services.oad,
-    imageIdentify: UUIDS.characteristics.oadImageIdentify,
-    block: UUIDS.characteristics.oadBlock,
-    chunkX: UUIDS.characteristics.oadChunkX,
   }),
   bind: Object.freeze({
     service: UUIDS.services.bind,

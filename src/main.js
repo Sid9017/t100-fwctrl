@@ -1,4 +1,5 @@
-import { fetchLatestOad } from './web/latest-oad.js';
+import { fetchLatestSignedOad } from './web/latest-signed-oad.js';
+import { validateSignedOad } from './web/signed-ota-format.js';
 import { BrowserConsole } from './web/console.js';
 import { listFoodImages, foodUrl } from './web/assets.js';
 import { capability, scanError } from './bluetooth.js';
@@ -15,12 +16,12 @@ const files = new Map();
 let firmwareGeneration=0, firmwareAbort;
 function cancelFirmwareFetch() {firmwareGeneration++;firmwareAbort?.abort();firmwareAbort=null;}
 for(const event of ['SessionIdle','ConnectionLost'])service.on(event,()=>{cancelFirmwareFetch();files.clear();});
-function selectFile(accept) {
+function selectFile(accept, multiple=false) {
   return new Promise(resolve => {
-    const input = document.createElement('input'); input.type='file'; input.accept=accept; input.hidden=true;
+    const input = document.createElement('input'); input.type='file'; input.accept=accept; input.multiple=multiple; input.hidden=true;
     document.body.append(input);
     const finish = value => { input.remove(); resolve(value); };
-    input.addEventListener('change',()=>finish(input.files[0]||null),{once:true});
+    input.addEventListener('change',()=>finish(multiple?[...input.files]:input.files[0]||null),{once:true});
     input.addEventListener('cancel',()=>finish(null),{once:true});
     input.click();
   });
@@ -46,28 +47,32 @@ const api = {
   selectSimFirmware:guard(async()=>{
     cancelFirmwareFetch();
     const generation=firmwareGeneration;
-    const file=await selectFile('.bin,application/octet-stream');
+    const selected=await selectFile('.bin,.manifest,application/octet-stream',true);
     if(generation!==firmwareGeneration)return {ok:true,canceled:true};
-    if(!file) return {ok:true,canceled:true};
-    files.clear();files.set(file.name,file);return {ok:true,path:file.name};
+    if(!selected?.length) return {ok:true,canceled:true};
+    const file=selected.find(f=>f.name.toLowerCase().endsWith('.bin')),manifest=selected.find(f=>f.name.toLowerCase().endsWith('.manifest'));
+    if(selected.length!==2 || !file || !manifest || file.size>245760 || manifest.size!==128)throw new Error('Select both the signed BIN and its matching .manifest file');
+    await validateSignedOad(new Uint8Array(await file.arrayBuffer()),new Uint8Array(await manifest.arrayBuffer()));
+    if(generation!==firmwareGeneration)return {ok:true,canceled:true};
+    files.clear();files.set(file.name,{file,manifest});return {ok:true,path:file.name};
   }),
   latestSimFirmware:guard(async()=>{
     cancelFirmwareFetch();const generation=firmwareGeneration;
     const controller=new AbortController();firmwareAbort=controller;
     const timeout=setTimeout(()=>controller.abort(),20000);
     try {
-      const {file,metadata}=await fetchLatestOad({signal:controller.signal});
+      const {file,manifest,metadata}=await fetchLatestSignedOad({signal:controller.signal});
       if(generation!==firmwareGeneration)return {ok:true,canceled:true};
-      files.clear();files.set(file.name,file);
-      return {ok:true,path:file.name,version:metadata.version,size:file.size};
+      files.clear();files.set(file.name,{file,manifest});
+      return {ok:true,path:file.name,version:metadata.version,size:file.size,releaseCounter:metadata.releaseCounter};
     } catch(error) {
       if(generation!==firmwareGeneration)return {ok:true,canceled:true};
       throw new Error(error.name==='AbortError'?'Latest firmware timed out. Select a local OAD file.':error.message);
     } finally {clearTimeout(timeout);if(firmwareAbort===controller)firmwareAbort=null;}
   }),
   startSimOad:guard(({firmwarePath})=>{
-    const file=files.get(firmwarePath);if(!file) throw new Error('Select an OAD firmware file first.');
-    return service.downloadOad(file);
+    const bundle=files.get(firmwarePath);if(!bundle) throw new Error('Select signed OAD firmware and manifest first.');
+    return service.downloadOad(bundle.file,bundle.manifest);
   }),
   importAuth:guard(async()=>{
     const file=await selectFile('.json,application/json');
