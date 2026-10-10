@@ -225,7 +225,7 @@ firmware version. Host, browser mocks and ARM firmware simulations do not replac
 real-device BLE/reset testing.
 
 Only signed OTA endpoints are registered. The old unsigned upload and download
-endpoints and TI/ChunkX client are removed. Existing unsigned storage is not
+endpoints and unsigned TI/ChunkX client are removed. Existing unsigned storage is not
 imported into the new `t100-signed-ota` Netlify Blobs store.
 
 - `POST /api/ota/signed/latest`: authenticated multipart `firmware`, `manifest`,
@@ -259,3 +259,9 @@ Netlify setup:
 `npm run dev` serves the same signed routes with a process-local in-memory store.
 Set its `T100_OTA_UPLOAD_TOKEN` to test authenticated publication. Tests use
 independent disposable signing keys and never access the production private key.
+
+Signed OAD uses ChunkX transport v2 when supported: device-reported MTU sizing,
+up to 496 BIN bytes per packet, an eight-chunk window and missing-chunk bitmap
+retransmission. It retains the same signed manifest, final device verification
+and antirollback policy. Deploy the browser before schema2 firmware; see
+[docs/signed-ota.md](docs/signed-ota.md).

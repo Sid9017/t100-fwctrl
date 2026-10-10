@@ -101,7 +101,7 @@ manifest. Both browser and server verify this before device transfer.
 | --- | --- | --- |
 | Service | 0bb0e5f9-5b14-401c-a2a9-b2fa83eb0b5c | Primary |
 | Control | 0bb0e5fc-5b14-401c-a2a9-b2fa83eb0b5c | Write with response |
-| Data | 0bb0e5fb-5b14-401c-a2a9-b2fa83eb0b5c | Write with response |
+| Data | 0bb0e5fb-5b14-401c-a2a9-b2fa83eb0b5c | Write request / command, max 500 B |
 | Status | 0bb0e5fd-5b14-401c-a2a9-b2fa83eb0b5c | Read / Notify |
 
 1. Subscribe/read status. Flags bit0 and bit1 must both be set (key / compatible BIM).
@@ -109,10 +109,19 @@ manifest. Both browser and server verify this before device transfer.
 2. Control `01 || auth8`, using current browser binding credential.
 3. Eight control `02 || offset_u8 || 16-byte manifest fragment` writes, offsets 0..112.
 4. Control `03`, wait for state 4 RECEIVE. ATT acknowledgment is not verification.
-5. Data `offset_u32 || 16-byte BIN payload`, sequential offsets including header.
-   Every write awaits its ATT response; MTU23-compatible 20-byte writes need no MTU
-   assumptions. Lost data response triggers status.offset read, accepting confirmed
-   advance or retrying only identical offset/data. Manifest ambiguity aborts.
+5. Schema2 signed ChunkX: after RECEIVE, use the reported negotiated chunk limit
+   and window (up to 496 BIN bytes and 8 chunks). Control `06 || chunk_bytes_u16
+   || window_u8` configures fixed chunk size. Data is `offset_u32 || BIN blocks`;
+   offsets align to configured chunk size, final chunk may be shortened. Confirm
+   the first packet with response; on failure read durable status before trying
+   a smaller chunk size, down to 16 B. Never reconfigure after durable progress.
+   Subsequent packets use Write Commands with a bounded window. After each batch
+   control `07` requests a notification; read status for a durable barrier and
+   dropped-notification recovery. Only missing bitmap entries are retransmitted,
+   with six rounds maximum per batch. Progress follows contiguous durable offset.
+   Schema1 devices or absent Write Command support use the original signed
+   sequential 16 B transfer. The signing and publication protocolVersion remains
+   1 because manifest/signature format is unchanged; transport status is schema2.
 6. After device offset equals full BIN size, control `04`; wait for state 6 COMMITTED.
    State 5 CHECK is still pending. A commit notification received before reset may
    confirm success even when reset loses the final ATT response. A disconnect
@@ -120,9 +129,24 @@ manifest. Both browser and server verify this before device transfer.
 7. On failure, best-effort control `05` ABORT if connected; disconnect also releases
    a noncommitted session. Reconnect and check DIS version after successful commit.
 
-Status: 12 bytes, schema byte0=1, state byte1 (0 IDLE, 1 MANIFEST, 2 VERIFY,
+Legacy signed status: 12 bytes, schema byte0=1, state byte1 (0 IDLE, 1 MANIFEST, 2 VERIFY,
 3 ERASE, 4 RECEIVE, 5 CHECK, 6 COMMITTED, 7 ERROR), positive error byte2,
 flags byte3, next offset u32 at 4, image size u32 at 8. Error codes 1 invalid/timeout,
 2 untrusted, 3 rollback, 4 crypto, 5 Flash I/O, 6 digest mismatch. Notifications are
 hints; reads can poll work completion. Device owns final verification and activation.
 Business/factory reset does not intentionally erase its antirollback journal.
+
+ChunkX schema2 status is 20 bytes (fits MTU23). The original fields at bytes1..11
+are unchanged; byte0=2, flags bit2 means signed ChunkX. Bytes12..13 hold the
+configured chunk length or negotiated limit before configuration; byte14 is the
+window (1..8); byte15 is configured (0/1); bytes16..19 are a little-endian bitmap.
+Bit i confirms durable readback at offset + i*chunk_bytes; bit0 is always zero
+because offset advances across contiguous chunks. Devices report their actual
+MTU-derived limit, so the browser needs no Web Bluetooth MTU getter. At MTU512 a
+500-byte value carries 496 BIN bytes; MTU23 uses a 20-byte value with 16 BIN bytes.
+The device requests 7.5..15 ms during OAD, subject to central acceptance.
+
+Deploy this browser before schema2 firmware: the previous browser rejects the
+new status schema. Never restore the legacy unsigned TI/ChunkX wire protocol.
+Hardware validation must cover MTU23/512, selective retransmission, disconnects,
+notification loss, actual accepted interval and reset/version confirmation.
