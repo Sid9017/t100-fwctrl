@@ -1,3 +1,4 @@
+import { fetchLatestOad } from './web/latest-oad.js';
 import { BrowserConsole } from './web/console.js';
 import { listFoodImages, foodUrl } from './web/assets.js';
 import { capability, scanError } from './bluetooth.js';
@@ -11,6 +12,9 @@ const supportElement = document.getElementById('browserSupport');
 supportElement.textContent = `${support.title}. ${support.detail}`;
 supportElement.classList.toggle('unsupported', !support.ok);
 const files = new Map();
+let firmwareGeneration=0, firmwareAbort;
+function cancelFirmwareFetch() {firmwareGeneration++;firmwareAbort?.abort();firmwareAbort=null;}
+for(const event of ['SessionIdle','ConnectionLost'])service.on(event,()=>{cancelFirmwareFetch();files.clear();});
 function selectFile(accept) {
   return new Promise(resolve => {
     const input = document.createElement('input'); input.type='file'; input.accept=accept; input.hidden=true;
@@ -32,7 +36,7 @@ const api = {
     const device=await service.selectDevice();
     return {ok:true,device};
   }),
-  connect:guard(device=>service.connect(device)),
+  connect:guard(device=>{cancelFirmwareFetch();files.clear();return service.connect(device);}),
   disconnect:guard(()=>service.disconnect()),
   readDeviceTime:guard(()=>service.readDeviceTime()),
   scaleSetUnit:guard(({unit})=>service.scaleSetUnit(unit)),
@@ -40,9 +44,26 @@ const api = {
   listFoodImages:guard(async()=>({ok:true,files:await listFoodImages()})),
   foodImagePreview:guard(async name=>({ok:true,dataUrl:foodUrl(name)})),
   selectSimFirmware:guard(async()=>{
+    cancelFirmwareFetch();
+    const generation=firmwareGeneration;
     const file=await selectFile('.bin,application/octet-stream');
+    if(generation!==firmwareGeneration)return {ok:true,canceled:true};
     if(!file) return {ok:true,canceled:true};
     files.clear();files.set(file.name,file);return {ok:true,path:file.name};
+  }),
+  latestSimFirmware:guard(async()=>{
+    cancelFirmwareFetch();const generation=firmwareGeneration;
+    const controller=new AbortController();firmwareAbort=controller;
+    const timeout=setTimeout(()=>controller.abort(),20000);
+    try {
+      const {file,metadata}=await fetchLatestOad({signal:controller.signal});
+      if(generation!==firmwareGeneration)return {ok:true,canceled:true};
+      files.clear();files.set(file.name,file);
+      return {ok:true,path:file.name,version:metadata.version,size:file.size};
+    } catch(error) {
+      if(generation!==firmwareGeneration)return {ok:true,canceled:true};
+      throw new Error(error.name==='AbortError'?'Latest firmware timed out. Select a local OAD file.':error.message);
+    } finally {clearTimeout(timeout);if(firmwareAbort===controller)firmwareAbort=null;}
   }),
   startSimOad:guard(({firmwarePath})=>{
     const file=files.get(firmwarePath);if(!file) throw new Error('Select an OAD firmware file first.');

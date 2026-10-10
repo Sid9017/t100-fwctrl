@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { generateKeyPairSync, sign } from 'node:crypto';
+import { generateKeyPairSync, sign, createHash } from 'node:crypto';
 const {privateKey,publicKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
 const jwk=publicKey.export({format:'jwk'});
 const pub=Buffer.concat([Buffer.from([2+(Buffer.from(jwk.y,'base64url').at(-1)&1)]),Buffer.from(jwk.x,'base64url')]);
@@ -626,4 +626,51 @@ for (const count of [0,2]) test(`history uploads ${count} photos with kcal-only 
   expect(begins).toHaveLength(count);
   expect(begins.map(w=>w.data[41])).toEqual(Array.from({length:count},(_,i)=>i));
   expect(writes.filter(w=>w.data[0]===0x68)).toHaveLength(count);
+});
+
+function latestFixture() {
+  const bytes=Buffer.alloc(32);bytes.writeUInt16LE(0x1234,4);bytes.writeUInt16LE(8,6);bytes.writeUInt32LE(0x42424242,8);
+  const sha256=createHash('sha256').update(bytes).digest('hex');
+  return {bytes,metadata:{schemaVersion:1,product:'t100',kind:'oad',version:'0x1234',size:bytes.length,sha256,downloadUrl:`/api/ota/download/${sha256}`}};
+}
+test('latest OAD selects after connection without starting an upgrade',async({page})=>{
+  const {bytes,metadata}=latestFixture();
+  await page.route('**/api/ota/latest',route=>route.fulfill({json:metadata}));
+  await page.route('**/api/ota/download/*',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
+  await mockBluetooth(page);await connect(page);
+  await expect(page.locator('#simFirmwareBtn')).toContainText('0x1234');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Ready');
+  await swipeTo(page,'oad');await expect(page.locator('#simOadBtn')).toBeEnabled();
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.id==='ffc1'||w.id==='ffc3'))).toEqual([]);
+});
+test('latest OAD failure keeps manual selection available',async({page})=>{
+  await page.route('**/api/ota/latest',route=>route.fulfill({status:404,json:{error:'No published firmware'}}));
+  await mockBluetooth(page);await connect(page);await swipeTo(page,'oad');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Select a local');
+  await expect(page.locator('#simOadBtn')).toBeDisabled();
+  const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
+  await (await chooser).setFiles({name:'local_oad.bin',mimeType:'application/octet-stream',buffer:latestFixture().bytes});
+  await expect(page.locator('#simFirmwareBtn')).toHaveText('local_oad.bin');
+  await expect(page.locator('#simOadBtn')).toBeEnabled();
+});
+test('manual selection and disconnection supersede an outstanding latest download',async({page})=>{
+  const {bytes,metadata}=latestFixture();let release;const gate=new Promise(r=>release=r);
+  await page.route('**/api/ota/latest',async route=>{await gate;await route.fulfill({json:metadata}).catch(()=>{});});
+  await page.route('**/api/ota/download/*',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
+  await mockBluetooth(page);await connect(page);await swipeTo(page,'oad');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Loading');
+  const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
+  await (await chooser).setFiles({name:'manual.bin',mimeType:'application/octet-stream',buffer:bytes});
+  release();await expect(page.locator('#simFirmwareBtn')).toHaveText('manual.bin');
+  await page.evaluate(()=>mock.disconnect());
+  await expect(page.locator('#simFirmwareBtn')).toHaveText('Select OAD firmware');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Connect');
+});
+test('corrupted latest OAD cannot be selected',async({page})=>{
+  const {bytes,metadata}=latestFixture();bytes[20]=1;
+  await page.route('**/api/ota/latest',route=>route.fulfill({json:metadata}));
+  await page.route('**/api/ota/download/*',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
+  await mockBluetooth(page);await connect(page);await swipeTo(page,'oad');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('SHA256 verification failed');
+  await expect(page.locator('#simOadBtn')).toBeDisabled();
 });

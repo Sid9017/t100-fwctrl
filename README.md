@@ -203,3 +203,70 @@ the 26-byte payload with all metadata except UUID/flags zeroed. The old weight/u
 layout is incompatible with the updated firmware. IMAGE_BEGIN/DATA/COMMIT/ABORT
 and each 40x40 RGB565+alpha image are unchanged. Firmware handles Flash migration;
 the browser does not migrate device records.
+
+
+## Latest OAD service
+
+The third screen automatically downloads and selects the latest validated OAD
+on connection. It never starts flashing automatically. Manual file selection
+cancels the automatic fetch; disconnect and a new connection invalidate stale
+requests. Missing releases, network errors or invalid images leave manual
+selection available. Downloads have a 20-second timeout and verify the APP-only
+header, version, byte length and SHA256 before becoming selectable.
+
+Netlify Functions expose these same-origin endpoints:
+
+- `POST /api/ota/latest`: authenticated multipart upload; fields `firmware`
+  (APP-only `.bin`) and `metadata` (JSON string). Requires
+  `Authorization: Bearer <token>` and `Idempotency-Key`.
+- `GET /api/ota/latest`: latest metadata plus `downloadUrl`, or 404 before the
+  first publish. Never cached.
+- `GET /api/ota/download/<sha256>`: exact latest binary, or 404 if that digest
+  has been replaced. The client retries metadata once after this 404.
+
+Metadata schema 1 contains `product: "t100"`, `kind: "oad"`, `version` (lowercase
+`0xNNNN` from the image header), `commitSha` (40 lowercase hex characters),
+`ref: "refs/heads/main"`, `workflow: ".github/workflows/t100-firmware.yml"`,
+`runId` (decimal string), `runNumber`/`runAttempt` (positive integers), `builtAt`
+(UTC ISO8601 ending in Z), `size` (bytes), and `sha256` (64 lowercase hex
+characters). No extra metadata fields are accepted. The Idempotency-Key is
+SHA256 of UTF-8 `workflow:runId:runAttempt:sha256`. The service rejects merged
+flash images and accepts APP-only images up to 240 KiB, aligned to 16 bytes.
+The bearer token authorizes publication; metadata is not a GitHub signature.
+
+A site-wide Netlify Blobs store `t100-ota` uses strong consistency and conditional
+writes. A single `latest` entry atomically contains metadata and the binary, so
+readers cannot mix versions. The `(runNumber, runAttempt)` sequence must belong
+to the fixed trusted workflow. Newer releases replace that entry; older releases
+return 200 `stale`, exact repeats return 200 `unchanged`, and conflicting reuse
+of an idempotency key or current sequence returns 409. Small hash-only receipts
+persist for idempotency; they contain no old firmware. Only one firmware copy
+is retained. Receipt records are intentionally not pruned automatically.
+
+Deployment configuration (not performed automatically):
+
+1. Deploy this repository to the existing Netlify site, including its functions.
+2. Set `T100_OTA_UPLOAD_TOKEN` in Netlify environment variables, Functions scope,
+   production context only. Use a randomly generated secret of at least 32
+   characters. Do not put it in frontend code, git or `netlify.toml`.
+3. Put the identical token in the firmware repo's Actions Secret
+   `T100_OTA_UPLOAD_TOKEN`. Set Actions Variable `T100_OTA_UPLOAD_URL` to
+   `https://t100-ctrl.netlify.app/api/ota/latest`.
+4. Once the endpoint is deployed and ready for integration, enable Actions
+   Variable `T100_OTA_ENABLED=true`. The CI task owns main-only publishing and
+   the explicit `publish_ota=true` gate for manual runs. Keep this switch off
+   until deployment is confirmed.
+
+The metadata and download endpoints are public; firmware must be suitable for
+public distribution. No GitHub credentials are delivered to the browser.
+Netlify supplies Blobs credentials to deployed functions automatically. Blobs
+usage is subject to the site's Netlify plan. See [Netlify Blobs documentation](https://docs.netlify.com/build/data-and-storage/netlify-blobs/)
+for conditional writes and consistency.
+
+`npm run dev` serves the same API using an in-memory store: local uploads are
+lost when that process restarts and never affect production. Set the local
+`T100_OTA_UPLOAD_TOKEN` environment variable to test publishing; without it POST
+returns 503. Restart an already running preview server after these changes.
+`npm test` covers upload validation, authorization, idempotency, stale/concurrent
+publishes, replacement, download races and corrupted bytes. Browser tests cover
+automatic selection, manual fallback and request cancellation.

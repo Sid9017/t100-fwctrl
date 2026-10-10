@@ -1289,6 +1289,7 @@ async function selectAndConnectDevice(device) {
     updateActionButtons();
       if (state.connected) {
       showView('test');
+      void loadLatestFirmware();
     }
   }
 }
@@ -1332,6 +1333,7 @@ function registerBleIpcListeners() {
     syncTabContentHeight();
   });
   window.mfgApi.onSessionIdle((payload) => {
+    clearFirmwareSelection();
     applySessionIdleUi(payload);
     syncTabContentHeight();
   });
@@ -1341,6 +1343,7 @@ function registerBleIpcListeners() {
       return;
     }
     setSimOadBusy(false);
+    clearFirmwareSelection();
     applySessionIdleUi(payload);
     const msg = 'Bluetooth disconnected. Select the device again to reconnect.';
     pushLog(msg);
@@ -1769,9 +1772,33 @@ refs.simResetBtn?.addEventListener('click', async () => {
   }
 });
 
+let latestFirmwareRequest=0;
+const firmwareStatus=document.getElementById('latestFirmwareStatus');
+function clearFirmwareSelection() {
+  latestFirmwareRequest++;state.simFirmwarePath='';
+  firmwareStatus.textContent='Connect to load the latest firmware.';
+  updateSimFirmwarePreview();updateActionButtons();
+}
+async function loadLatestFirmware() {
+  const request=++latestFirmwareRequest;
+  state.simFirmwarePath='';updateSimFirmwarePreview();updateActionButtons();
+  firmwareStatus.textContent='Loading latest firmware…';
+  const result=await window.mfgApi.latestSimFirmware();
+  if(request!==latestFirmwareRequest||!state.connected||result.canceled)return;
+  if(result.ok) {
+    state.simFirmwarePath=result.path;
+    firmwareStatus.textContent=`Latest ${result.version} · ${(result.size/1024).toFixed(1)} KB · Ready`;
+  } else firmwareStatus.textContent=result.message;
+  updateSimFirmwarePreview();updateActionButtons();
+}
+
 refs.simFirmwareBtn.addEventListener('click', async () => {
+  const request=++latestFirmwareRequest;
+  firmwareStatus.textContent='Select a local OAD file.';
   const result = await window.mfgApi.selectSimFirmware();
+  if(request!==latestFirmwareRequest||!state.connected)return;
   if (!result.ok || result.canceled) return;
+  firmwareStatus.textContent='Local firmware selected.';
   state.simFirmwarePath = result.path || '';
   updateSimFirmwarePreview();
   updateActionButtons();
