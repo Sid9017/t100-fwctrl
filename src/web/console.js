@@ -9,7 +9,8 @@ import protocol from '../vendor/ble/protocol/index.js';
 import uuidHelpers from '../vendor/ble/core/uuids.js';
 import scale from '../vendor/ble/core/fee0-scale-wire.js';
 import { runSignedOad } from './signed-oad.js';
-import { SIGNED_OTA_UUIDS } from './signed-ota-format.js';
+import { SIGNED_OTA_UUIDS, parseManifest } from './signed-ota-format.js';
+import { oadVersion } from './ota-format.js';
 const { T100Session, canonicalUuid } = sessionModule;
 const { GATT, TOPICS } = protocol;
 const matches = (a,b) => canonicalUuid(a) === canonicalUuid(b) || (String(b).replaceAll('-','').length === 32 && uuidHelpers.uuidMatches128(a,b));
@@ -233,8 +234,15 @@ export class BrowserConsole extends DeviceActions {
       if(!manifestFile || file.size>245760 || manifestFile.size!==128)throw new Error('Select a signed firmware BIN and its matching 128-byte manifest');
       const credential=this.auth.resolve(this.entry.device);
       if(!credential)throw new Error('Bind this device or import its browser auth credential before signed OAD');
-      const discovery=await this.discoverSignedOad(connection);
       const bytes=Buffer.from(await file.arrayBuffer()),manifest=Buffer.from(await manifestFile.arrayBuffer());
+      const targetVersion=parseManifest(manifest).version;
+      // Read DIS again at the point of use, instead of trusting the UI cache.
+      const firmware=await this.session.readFirmwareVersion(connection);
+      this.entry.ui.firmware=firmware;this.emit('ScanUpsert',[this.entry.ui]);
+      const currentVersion=oadVersion(firmware);
+      if(!currentVersion)throw new Error('Cannot determine the device firmware version. Reconnect before upgrading.');
+      if(currentVersion===targetVersion)throw new Error(`The device already runs firmware ${targetVersion}. No upgrade is needed.`);
+      const discovery=await this.discoverSignedOad(connection);
       const result=await runSignedOad({adapter:this.adapter,connection,discovery,bytes,manifest,auth8:Buffer.from(credential.auth_key,'ascii'),abortRef,
         onProgress:progress=>this.emit('SimOadProgress',{progress})});
       await this.disconnect();this.emit('SessionIdle',{state:'idle'});

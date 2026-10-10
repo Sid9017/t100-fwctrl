@@ -133,7 +133,26 @@ h1,h2,p { margin-top:0; }
 .history-rating button.is-filled::before { background:#849847; }
 #viewOad > .view-inner:not(.connection-layout) { max-width:560px; min-height:100%; display:flex; flex-direction:column; justify-content:center; padding:32px; }
 #viewOad .view-header { margin-bottom:12px; }
-.file-picker-button { width:100%; min-height:88px; border:1px dashed #9fa98e; background:var(--panel); overflow-wrap:anywhere; }
+.firmware-card-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+.firmware-card-heading .field-label { margin:0; }
+.firmware-badge { padding:4px 10px; border-radius:999px; color:var(--accent); background:var(--accent-bg); font-size:12px; font-weight:600; }
+.file-picker-button { width:100%; min-height:80px; display:flex; align-items:center; justify-content:center; gap:12px; border:1px solid var(--border); border-radius:16px; background:var(--panel); overflow-wrap:anywhere; }
+.firmware-file-icon { width:28px; height:28px; flex:none; color:var(--accent); }
+#simFirmwareName { min-width:0; text-align:left; }
+.firmware-details { margin-top:16px; border-top:1px solid var(--border); }
+.firmware-details summary { display:flex; align-items:center; gap:8px; min-height:48px; padding:12px 0; list-style:none; cursor:pointer; font-size:14px; font-weight:600; touch-action:manipulation; }
+.firmware-details summary::-webkit-details-marker { display:none; }
+.firmware-details summary:active { color:var(--accent); }
+.firmware-chevron { width:16px; height:16px; flex:none; color:var(--accent); transition:transform 160ms; }
+.firmware-details[open] .firmware-chevron { transform:rotate(180deg); }
+.firmware-detail-list { display:flex; flex-direction:column; gap:14px; margin:2px 0 12px; padding:16px; border-radius:14px; background:var(--panel); }
+.firmware-detail-list > div { display:grid; grid-template-columns:64px minmax(0,1fr); align-items:baseline; column-gap:12px; min-width:0; }
+.firmware-detail-list dt { margin:0; color:var(--muted); font-size:12px; line-height:1.6; }
+.firmware-detail-list dd { margin:0; min-width:0; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+.firmware-detail-list code { font-size:12px; }
+.firmware-digest { align-items:start!important; }
+.firmware-digest code { font-size:12px; line-height:1.8; user-select:all; }
+.sim-firmware-card:has(.firmware-details[open]) .sim-oad-progress { margin-top:20px; }
 .sim-oad-progress { margin-top:28px; }
 .progress-head { display:flex; justify-content:space-between; margin-bottom:12px; font-size:12px; color:var(--label); }
 .progress-track { height:6px; background:#e8ecdf; border-radius:8px; overflow:hidden; }
@@ -210,4 +229,5 @@ h1,h2,p { margin-top:0; }
 .console-log .hud-chip-status { display:flex; gap:8px; padding:0 0 8px; color:var(--label); font:11px var(--mono); }
 .device-status-box { display:flex; flex-wrap:wrap; gap:8px; }
 
-#latestFirmwareStatus { margin:12px 0 0; font-size:13px; line-height:1.6; color:var(--muted); white-space:pre-line; overflow-wrap:anywhere; }
+#latestFirmwareStatus { margin:12px 0 0; font-size:13px; line-height:1.6; color:var(--muted); overflow-wrap:anywhere; }
+#latestFirmwareStatus.is-verified { color:var(--accent); }

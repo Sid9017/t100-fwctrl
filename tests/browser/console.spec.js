@@ -13,15 +13,15 @@ function admissionToken() {
   const message=`${pub.toString('base64url')}.${payload.toString('base64url')}`;
   return `${message}.${sign('sha256',Buffer.from(message),{key:privateKey,dsaEncoding:'ieee-p1363'}).toString('base64url')}`;
 }
-async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFailure=false,failTheme=false,bindUuidForm='canonical',initialScreen=4,pickerName=name}={}) {
-  await page.addInitScript(({name,record,token,bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen,testKey,U,publishingKey})=>{
+async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFailure=false,failTheme=false,bindUuidForm='canonical',initialScreen=4,pickerName=name,firmware='1.0.0-5678'}={}) {
+  await page.addInitScript(({name,record,token,bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen,testKey,U,publishingKey,firmware})=>{
     if(stored && !localStorage.getItem('t100.mfg.auth.v1'))localStorage.setItem('t100.mfg.auth.v1',JSON.stringify([record]));
     if(storageFailure)Storage.prototype.setItem=()=>{throw new DOMException('Full','QuotaExceededError');};
     // Browser fixtures use a disposable signer, never the production private key.
     const originalImport=crypto.subtle.importKey.bind(crypto.subtle);
     crypto.subtle.importKey=(format,keyData,algorithm,...rest)=>originalImport(format,format==='raw'&&algorithm.name==='ECDSA'&&Array.from(new Uint8Array(keyData.buffer??keyData,keyData.byteOffset??0,keyData.byteLength??keyData.length)).map(b=>b.toString(16).padStart(2,'0')).join('')===publishingKey?Uint8Array.from(testKey):keyData,algorithm,...rest);
     const full=s=>s.length===4?`0000${s}-0000-1000-8000-00805f9b34fb`:s;
-    window.mock={writes:[],requests:[],connects:0,bound,cancel,failTheme};
+    window.mock={writes:[],requests:[],connects:0,bound,cancel,failTheme,firmware};
     const device=new EventTarget();device.id='mock-t100';device.name=name;
     const chars=new Map();
     function char(id,properties,bytes=[]) {
@@ -51,12 +51,13 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
     const notify={read:true,notify:true};
     const services=[
       ['fee0',[char('fee1',notify,[0,0x40,0xe2,1,0]),char('fee2',{write:true}),char('fee3',{write:true}),char('fee4',{read:true,write:true},[1]),char('fee5',notify,[8,4,2,2,1,0,0,0])]],
-      ['180a',[char('2a26',{read:true},[...new TextEncoder().encode('1.2.3')])]],
+      ['180a',[char('2a26',{read:true},[...new TextEncoder().encode(firmware)])]],
       ['180f',[char('2a19',notify,[87])]],
       ['1805',[char('2a2b',{read:true,write:true},[0xea,7,10,8,12,0,0,4,0,0])]],
       [U.service,[char(U.control,{write:true}),char(U.data,{write:true}),char(U.status,{read:true,notify:true})]],
     ].map(([id,characters])=>({uuid:full(id),getCharacteristics:async()=>characters}));
     chars.get(U.status).readValue=async()=>{const bytes=new Uint8Array(12),v=new DataView(bytes.buffer);bytes.set([1,window.mock.otaState??0,window.mock.otaError??0,3]);v.setUint32(4,window.mock.otaOffset??0,true);v.setUint32(8,window.mock.otaSize??0,true);return v;};
+    chars.get('2a26').readValue=async()=>new DataView(new TextEncoder().encode(window.mock.firmware).buffer);
     chars.get('fee5').readValue=async()=>new DataView(new Uint8Array([8,initialScreen,0,2,window.mock.bound?1:0,0,0,0]).buffer);
     const customUuid = value => {
       if(bindUuidForm==='canonical') return value;
@@ -88,7 +89,7 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
     Object.defineProperty(navigator,'bluetooth',{configurable:true,value:{requestDevice:async options=>{
       window.mock.requests.push(options);if(window.mock.cancel)throw new DOMException('No device selected','NotFoundError');return device;
     }}});
-  },{name:pickerName,record,token:admissionToken(),bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen,testKey:[...testPublicKey],U,publishingKey:OTA_PUBLIC_KEY_HEX});
+  },{name:pickerName,record,token:admissionToken(),bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen,testKey:[...testPublicKey],U,publishingKey:OTA_PUBLIC_KEY_HEX,firmware});
 }
 async function swipeTo(page, target) {
   const views = ['connect','test','oad'];
@@ -656,6 +657,7 @@ function latestFixture() {
 test.describe('firmware release details',()=>{
 test.use({timezoneId:'Asia/Shanghai'});
 test('latest OAD selects after connection without starting an upgrade',async({page})=>{
+  await page.setViewportSize({width:375,height:812});
   const {bytes,manifest,metadata}=latestFixture();
   metadata.uploadedAt='2026-10-10T07:30:00Z';
   await page.route('**/api/ota/signed/latest',route=>route.fulfill({json:metadata}));
@@ -663,8 +665,24 @@ test('latest OAD selects after connection without starting an upgrade',async({pa
   await page.route('**/api/ota/signed/manifest/**',route=>route.fulfill({body:manifest,contentType:'application/octet-stream'}));
   await mockBluetooth(page);await connect(page);
   await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
-  await expect(page.locator('#latestFirmwareStatus')).toHaveText(`Version 0x1234 · 0.0 KB\nUploaded 2026-10-10 15:30:00\nSHA-256 ${metadata.sha256}`);
+  await expect(page.locator('#latestFirmwareStatus')).toHaveText('Signature verified · 0.0 KB');
+  await expect(page.locator('#firmwareDetails')).not.toHaveAttribute('open');
+  await expect(page.locator('#firmwareDetailHash')).toBeHidden();
   await swipeTo(page,'oad');await expect(page.locator('#simOadBtn')).toBeEnabled();
+  await expect.poll(()=>page.locator('#viewOad').evaluate(el=>Math.round(el.getBoundingClientRect().left))).toBe(0);
+  await page.screenshot({path:'/tmp/t100-firmware-collapsed.png'});
+  const summary=page.locator('#firmwareDetails summary');
+  await summary.click();
+  await expect(page.locator('#firmwareDetailVersion')).toHaveText('0x1234');
+  await expect(page.locator('#firmwareDetailTime')).toHaveText('2026-10-10 15:30:00');
+  await expect(page.locator('#firmwareDetailHash')).toHaveText(metadata.sha256);
+  expect(await page.locator('.firmware-detail-list').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await page.screenshot({path:'/tmp/t100-firmware-expanded.png'});
+  await page.locator('#simOadBtn').scrollIntoViewIfNeeded();await expect(page.locator('#simOadBtn')).toBeInViewport();
+  await page.setViewportSize({width:812,height:375});await page.emulateMedia({reducedMotion:'reduce'});
+  expect(await page.locator('.firmware-detail-list').evaluate(el=>el.scrollWidth<=el.clientWidth)).toBe(true);
+  await summary.focus();await summary.press('Enter');
+  await expect(page.locator('#firmwareDetails')).not.toHaveAttribute('open');
   expect(await page.evaluate(()=>mock.writes.filter(w=>w.id.startsWith('0bb0')))).toEqual([]);
 });
 });
@@ -676,7 +694,8 @@ test('latest OAD failure keeps manual selection available',async({page})=>{
   const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
   await (await chooser).setFiles([{name:'local_oad.bin',mimeType:'application/octet-stream',buffer:latestFixture().bytes},{name:'local_oad.manifest',mimeType:'application/octet-stream',buffer:latestFixture().manifest}]);
   await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
-  await expect(page.locator('#latestFirmwareStatus')).toContainText('Version 0x1234');
+  await expect(page.locator('#firmwareDetailVersion')).toHaveText('0x1234');
+  await expect(page.locator('#firmwareDetailTime')).toHaveText('Local file');
   await expect(page.locator('#simOadBtn')).toBeEnabled();
 });
 test('manual selection and disconnection supersede an outstanding latest download',async({page})=>{
@@ -692,6 +711,8 @@ test('manual selection and disconnection supersede an outstanding latest downloa
   await page.evaluate(()=>mock.disconnect());
   await expect(page.locator('#simFirmwareBtn')).toHaveText('Select OAD firmware');
   await expect(page.locator('#latestFirmwareStatus')).toContainText('Connect');
+  await expect(page.locator('#firmwareDetails')).toBeHidden();
+  await expect(page.locator('#firmwareDetailHash')).toHaveText('');
 });
 test('corrupted latest OAD cannot be selected',async({page})=>{
   const {bytes,manifest,metadata}=latestFixture();bytes[20]=1;
@@ -701,4 +722,40 @@ test('corrupted latest OAD cannot be selected',async({page})=>{
   await mockBluetooth(page);await connect(page);await swipeTo(page,'oad');
   await expect(page.locator('#latestFirmwareStatus')).toContainText('SHA256 verification failed');
   await expect(page.locator('#simOadBtn')).toBeDisabled();
+});
+
+test('same latest firmware disables upgrading, including direct API calls after a fresh version read',async({page})=>{
+  const {bytes,manifest,metadata}=latestFixture();
+  await page.route('**/api/ota/signed/latest',route=>route.fulfill({json:metadata}));
+  await page.route('**/api/ota/signed/download/**',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
+  await page.route('**/api/ota/signed/manifest/**',route=>route.fulfill({body:manifest,contentType:'application/octet-stream'}));
+  await mockBluetooth(page,{firmware:'1.0.0-1234'});await connect(page);await swipeTo(page,'oad');
+  await expect(page.locator('#simOadBtn')).toHaveText('Up to date');
+  await expect(page.locator('#simOadBtn')).toBeDisabled();
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Already running 0x1234');
+  const result=await page.evaluate(()=>mfgApi.startSimOad({firmwarePath:'T100_OAD.bin'}));
+  expect(result.ok).toBe(false);expect(result.message).toContain('already runs firmware 0x1234');
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.id.startsWith('0bb0')))).toEqual([]);
+});
+for(const firmware of ['1.0.0-1234','Unknown'])test(`local firmware selection blocks matching or unknown device version ${firmware}`,async({page})=>{
+  await page.route('**/api/ota/signed/latest',route=>route.fulfill({status:404,json:{error:'No published firmware'}}));
+  await mockBluetooth(page,{firmware});await connect(page);await swipeTo(page,'oad');
+  const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
+  await (await chooser).setFiles([{name:'test.bin',mimeType:'application/octet-stream',buffer:latestFixture().bytes},{name:'test.manifest',mimeType:'application/octet-stream',buffer:latestFixture().manifest}]);
+  await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
+  await expect(page.locator('#simOadBtn')).toBeDisabled();
+  await expect(page.locator('#latestFirmwareStatus')).toContainText(firmware==='Unknown'?'version unavailable':'Already running');
+});
+test('upgrade start rereads a changed device version and sends no OAD commands for a match',async({page})=>{
+  const {bytes,manifest,metadata}=latestFixture();
+  await page.route('**/api/ota/signed/latest',route=>route.fulfill({json:metadata}));
+  await page.route('**/api/ota/signed/download/**',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
+  await page.route('**/api/ota/signed/manifest/**',route=>route.fulfill({body:manifest,contentType:'application/octet-stream'}));
+  await mockBluetooth(page);await connect(page);await swipeTo(page,'oad');
+  await expect(page.locator('#simOadBtn')).toBeEnabled();
+  await page.evaluate(()=>{mock.firmware='1.0.0-1234';});
+  const result=await page.evaluate(()=>mfgApi.startSimOad({firmwarePath:'T100_OAD.bin'}));
+  expect(result.ok).toBe(false);expect(result.message).toContain('already runs');
+  await expect(page.locator('#simOadBtn')).toBeDisabled();
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.id.startsWith('0bb0')))).toEqual([]);
 });

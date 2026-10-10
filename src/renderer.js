@@ -1,4 +1,5 @@
 import { renderHistoryControls } from './web/history-controls.js';
+import { oadVersion } from './web/ota-format.js';
 const DEVICE_TIME_IDLE = '--';
 const SIM_FIRMWARE_BTN_LABEL = 'Select OAD firmware';
 
@@ -18,6 +19,7 @@ const state = {
   deviceTimeTickTimer: null,
   connectAttemptSeq: 0,
   simFirmwarePath: '',
+  simFirmwareVersion: null,
   simOadBusy: false,
   simOadOutcomeAnimating: false,
   kcalHistBusy: false,
@@ -315,7 +317,7 @@ function simFirmwareDisplayName() {
 
 function updateSimFirmwarePreview() {
   const name = simFirmwareDisplayName();
-  refs.simFirmwareBtn.textContent = name || SIM_FIRMWARE_BTN_LABEL;
+  document.getElementById('simFirmwareName').textContent = name || SIM_FIRMWARE_BTN_LABEL;
   refs.simFirmwareBtn.title = state.simFirmwarePath || '';
   syncGuideAndModuleUi();
 }
@@ -1115,6 +1117,8 @@ function updateActionButtons() {
   document.getElementById('historyFields').disabled = state.kcalHistBusy || state.morphThemeBusy || state.actionBusy;
   const canOperate = Boolean(state.selectedDevice && state.connected && !state.connecting && !state.morphThemeBusy && !state.actionBusy);
   const isBound = deviceBindState(state.selectedDevice) === 'bound';
+  const currentOadVersion=oadVersion(state.selectedDevice?.firmware),selectedOadVersion=oadVersion(state.simFirmwareVersion);
+  const sameOadVersion=!!selectedOadVersion && currentOadVersion===selectedOadVersion;
   document.getElementById('deviceUnitValue').disabled = !canOperate || state.simOadBusy;
   refs.simContainerSet.disabled = refs.simContainerClear.disabled =
     !canOperate || !isBound || state.simOadBusy || state.containerBusy;
@@ -1150,7 +1154,9 @@ function updateActionButtons() {
     state.morphThemeBusy;
   if (refs.simResetBtn) refs.simResetBtn.disabled = !canOperate || state.simOadBusy || state.kcalHistBusy || state.morphThemeBusy;
   refs.simOadBtn.disabled =
-    !canOperate || state.simOadBusy || state.kcalHistBusy || state.morphThemeBusy || !state.simFirmwarePath;
+    !canOperate || state.simOadBusy || state.kcalHistBusy || state.morphThemeBusy || !state.simFirmwarePath ||
+    !currentOadVersion || sameOadVersion;
+  refs.simOadBtn.textContent=state.simFirmwarePath && sameOadVersion?'Up to date':'Start OAD';
   refs.simFirmwareBtn.disabled = state.simOadBusy || state.kcalHistBusy || state.morphThemeBusy;
   if (refs.simHistFoodTrigger) {
     refs.simHistFoodTrigger.disabled = state.kcalHistBusy || state.morphThemeBusy;
@@ -1772,45 +1778,65 @@ refs.simResetBtn?.addEventListener('click', async () => {
 
 let latestFirmwareRequest=0;
 const firmwareStatus=document.getElementById('latestFirmwareStatus');
+const firmwareDetails=document.getElementById('firmwareDetails');
+function hideFirmwareDetails() {
+  firmwareDetails.hidden=true;firmwareDetails.open=false;
+  firmwareStatus.classList.remove('is-verified');
+  for(const id of ['firmwareDetailVersion','firmwareDetailTime','firmwareDetailHash'])document.getElementById(id).textContent='';
+}
 function firmwareTime(value) {
   if(typeof value!=='string')return '';
   const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
   const pad=n=>String(n).padStart(2,'0');
   return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
-function firmwareAnnotation(result,local=false) {
-  const details=`Version ${result.version} · ${(result.size/1024).toFixed(1)} KB`;
-  const digest=`SHA-256 ${result.sha256}`;
-  if(local)return `${details}\nLocal signed firmware verified\n${digest}`;
+function showFirmwareDetails(result,local=false) {
+  hideFirmwareDetails();
+  state.simFirmwareVersion=result.version;
+  const size=`${(result.size/1024).toFixed(1)} KB`;
   const uploaded=firmwareTime(result.uploadedAt),built=firmwareTime(result.builtAt);
-  return `${details}\n${uploaded?`Uploaded ${uploaded}`:built?`Built ${built}`:'Upload time unavailable'}\n${digest}`;
+  document.getElementById('firmwareDetailVersion').textContent=result.version;
+  document.getElementById('firmwareDetailTimeLabel').textContent=local?'Source':uploaded?'Uploaded':built?'Built':'Uploaded';
+  document.getElementById('firmwareDetailTime').textContent=local?'Local file':uploaded||built||'Not recorded';
+  document.getElementById('firmwareDetailHash').textContent=result.sha256;
+  firmwareDetails.hidden=false;
+  const current=oadVersion(state.selectedDevice?.firmware);
+  firmwareStatus.textContent=current===oadVersion(result.version)?`Already running ${result.version} · ${size}`:current?`Signature verified · ${size}`:'Device version unavailable. Reconnect to check.';
+  firmwareStatus.classList.toggle('is-verified',!!current);
 }
 function clearFirmwareSelection() {
-  latestFirmwareRequest++;state.simFirmwarePath='';
+  latestFirmwareRequest++;state.simFirmwarePath='';state.simFirmwareVersion=null;
+  hideFirmwareDetails();
   firmwareStatus.textContent='Connect to load the latest firmware.';
   updateSimFirmwarePreview();updateActionButtons();
 }
 async function loadLatestFirmware() {
   const request=++latestFirmwareRequest;
-  state.simFirmwarePath='';updateSimFirmwarePreview();updateActionButtons();
+  state.simFirmwarePath='';state.simFirmwareVersion=null;updateSimFirmwarePreview();updateActionButtons();
+  hideFirmwareDetails();
   firmwareStatus.textContent='Loading latest firmware…';
   const result=await window.mfgApi.latestSimFirmware();
   if(request!==latestFirmwareRequest||!state.connected||result.canceled)return;
   if(result.ok) {
     state.simFirmwarePath=result.path;
-    firmwareStatus.textContent=firmwareAnnotation(result);
+    showFirmwareDetails(result);
   } else firmwareStatus.textContent=result.message;
   updateSimFirmwarePreview();updateActionButtons();
 }
 
 refs.simFirmwareBtn.addEventListener('click', async () => {
   const request=++latestFirmwareRequest;
+  const previousStatus=firmwareStatus.textContent,wasVerified=firmwareStatus.classList.contains('is-verified');
+  firmwareStatus.classList.remove('is-verified');
   firmwareStatus.textContent='Select the signed BIN and .manifest together.';
   const result = await window.mfgApi.selectSimFirmware();
   if(request!==latestFirmwareRequest||!state.connected)return;
-  if(result.canceled)return;
+  if(result.canceled){
+    firmwareStatus.textContent=state.simFirmwarePath?previousStatus:'Select the signed BIN and .manifest together.';
+    firmwareStatus.classList.toggle('is-verified',!!state.simFirmwarePath && wasVerified);return;
+  }
   if(!result.ok){firmwareStatus.textContent=result.message;return;}
-  firmwareStatus.textContent=firmwareAnnotation(result,true);
+  showFirmwareDetails(result,true);
   state.simFirmwarePath = result.path || '';
   updateSimFirmwarePreview();
   updateActionButtons();

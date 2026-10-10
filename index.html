@@ -270,11 +270,26 @@
 
               <div class="stack gate-content" data-gate-content="connected">
                 <div class="sim-control-card sim-firmware-card">
-                  <div class="field-label">Signed OAD firmware</div>
-                  <button id="simFirmwareBtn" class="secondary-button file-picker-button" type="button">
-                    Select OAD firmware
+                  <div class="firmware-card-heading">
+                    <div class="field-label">OAD firmware</div>
+                    <span class="firmware-badge">Signed</span>
+                  </div>
+                  <button id="simFirmwareBtn" class="secondary-button file-picker-button" type="button" aria-describedby="latestFirmwareStatus">
+                    <svg class="firmware-file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+                    <span id="simFirmwareName">Select OAD firmware</span>
                   </button>
                   <p id="latestFirmwareStatus" role="status">Connect to load the latest firmware.</p>
+                  <details id="firmwareDetails" class="firmware-details" hidden>
+                    <summary>
+                      <svg class="firmware-chevron" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M3 5h10l-5 6Z"/></svg>
+                      <span>Details</span>
+                    </summary>
+                    <dl class="firmware-detail-list">
+                      <div><dt>Version</dt><dd><code id="firmwareDetailVersion"></code></dd></div>
+                      <div><dt id="firmwareDetailTimeLabel">Uploaded</dt><dd id="firmwareDetailTime"></dd></div>
+                      <div class="firmware-digest"><dt>SHA-256</dt><dd><code id="firmwareDetailHash"></code></dd></div>
+                    </dl>
+                  </details>
                   <div class="sim-oad-progress">
                     <div class="progress-head sim-oad-progress-head">
                       <span>OAD progress</span>
