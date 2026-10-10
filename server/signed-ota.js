@@ -59,18 +59,18 @@ export function createSignedOtaHandler({getStore,token,publicKeyHex=OTA_PUBLIC_K
             if(order===0n){check(old.sha256===m.sha256 && old.manifestSha256===m.manifestSha256 && old.commitSha===m.commitSha && old.runId===m.runId,'Release counter conflict',409);return reply('unchanged');}
             check(current.etag,'Storage revision unavailable',503);
           }
-          const saved=await store.setJSON('latest',{metadata:m,firmware:bytes.toString('base64'),manifest:manifest.toString('base64')},current?{onlyIfMatch:current.etag}:{onlyIfNew:true});
+          const saved=await store.setJSON('latest',{metadata:m,uploadedAt:new Date().toISOString(),firmware:bytes.toString('base64'),manifest:manifest.toString('base64')},current?{onlyIfMatch:current.etag}:{onlyIfNew:true});
           if(saved.modified)return reply('published');
         }
         return json({error:'Concurrent publish; retry'},503);
       }
       if(!['GET','HEAD'].includes(request.method))return json({error:'Method not allowed'},405);
       const current=await getStore().getWithMetadata('latest',{type:'json'});if(!current)return json({error:'No published signed OAD firmware'},404);
-      const {metadata:m,firmware,manifest}=current.data,urls=signedUrls(m);
-      if(path==='/api/ota/signed/latest'){const response=json({...m,...urls});return request.method==='HEAD'?new Response(null,{headers:response.headers}):response;}
+      const {metadata:m,firmware,manifest,uploadedAt}=current.data,urls=signedUrls(m);
+      if(path==='/api/ota/signed/latest'){const response=json({...m,...urls,...(uploadedAt?{uploadedAt}:{})});return request.method==='HEAD'?new Response(null,{headers:response.headers}):response;}
       check(path===urls.downloadUrl || path===urls.manifestUrl,'Signed release replaced; fetch latest again',404);
       const isManifest=path===urls.manifestUrl,bytes=Buffer.from(isManifest?manifest:firmware,'base64'),digest=isManifest?m.manifestSha256:m.sha256;
-      return new Response(request.method==='HEAD'?null:bytes,{headers:{...headers,'Content-Type':'application/octet-stream','Content-Length':String(bytes.length),ETag:`"${digest}"`,'Content-Disposition':`attachment; filename="BK3633_T100_oad.${isManifest?'manifest':'bin'}"`}});
+      return new Response(request.method==='HEAD'?null:bytes,{headers:{...headers,'Content-Type':'application/octet-stream','Content-Length':String(bytes.length),ETag:`"${digest}"`,'Content-Disposition':`attachment; filename="T100_OAD.${isManifest?'manifest':'bin'}"`}});
     }catch(error){return json({error:error instanceof HttpError?error.message:'Signed OTA service unavailable'},error instanceof HttpError?error.status:503);}
   };
 }

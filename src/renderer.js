@@ -310,9 +310,7 @@ function showView(view) {
 }
 
 function simFirmwareDisplayName() {
-  if (!state.simFirmwarePath) return '';
-  const parts = state.simFirmwarePath.split(/[\\/]/);
-  return parts[parts.length - 1] || state.simFirmwarePath;
+  return state.simFirmwarePath ? 'T100_OAD.bin' : '';
 }
 
 function updateSimFirmwarePreview() {
@@ -1774,6 +1772,19 @@ refs.simResetBtn?.addEventListener('click', async () => {
 
 let latestFirmwareRequest=0;
 const firmwareStatus=document.getElementById('latestFirmwareStatus');
+function firmwareTime(value) {
+  if(typeof value!=='string')return '';
+  const date=new Date(value);if(!Number.isFinite(date.getTime()))return '';
+  const pad=n=>String(n).padStart(2,'0');
+  return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
+function firmwareAnnotation(result,local=false) {
+  const details=`Version ${result.version} · ${(result.size/1024).toFixed(1)} KB`;
+  const digest=`SHA-256 ${result.sha256}`;
+  if(local)return `${details}\nLocal signed firmware verified\n${digest}`;
+  const uploaded=firmwareTime(result.uploadedAt),built=firmwareTime(result.builtAt);
+  return `${details}\n${uploaded?`Uploaded ${uploaded}`:built?`Built ${built}`:'Upload time unavailable'}\n${digest}`;
+}
 function clearFirmwareSelection() {
   latestFirmwareRequest++;state.simFirmwarePath='';
   firmwareStatus.textContent='Connect to load the latest firmware.';
@@ -1787,7 +1798,7 @@ async function loadLatestFirmware() {
   if(request!==latestFirmwareRequest||!state.connected||result.canceled)return;
   if(result.ok) {
     state.simFirmwarePath=result.path;
-    firmwareStatus.textContent=`Latest ${result.version} · ${(result.size/1024).toFixed(1)} KB · Ready`;
+    firmwareStatus.textContent=firmwareAnnotation(result);
   } else firmwareStatus.textContent=result.message;
   updateSimFirmwarePreview();updateActionButtons();
 }
@@ -1799,7 +1810,7 @@ refs.simFirmwareBtn.addEventListener('click', async () => {
   if(request!==latestFirmwareRequest||!state.connected)return;
   if(result.canceled)return;
   if(!result.ok){firmwareStatus.textContent=result.message;return;}
-  firmwareStatus.textContent='Local signed firmware verified.';
+  firmwareStatus.textContent=firmwareAnnotation(result,true);
   state.simFirmwarePath = result.path || '';
   updateSimFirmwarePreview();
   updateActionButtons();

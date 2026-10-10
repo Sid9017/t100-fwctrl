@@ -52,9 +52,9 @@ const api = {
     if(!selected?.length) return {ok:true,canceled:true};
     const file=selected.find(f=>f.name.toLowerCase().endsWith('.bin')),manifest=selected.find(f=>f.name.toLowerCase().endsWith('.manifest'));
     if(selected.length!==2 || !file || !manifest || file.size>245760 || manifest.size!==128)throw new Error('Select both the signed BIN and its matching .manifest file');
-    await validateSignedOad(new Uint8Array(await file.arrayBuffer()),new Uint8Array(await manifest.arrayBuffer()));
+    const info=await validateSignedOad(new Uint8Array(await file.arrayBuffer()),new Uint8Array(await manifest.arrayBuffer()));
     if(generation!==firmwareGeneration)return {ok:true,canceled:true};
-    files.clear();files.set(file.name,{file,manifest});return {ok:true,path:file.name};
+    files.clear();files.set(file.name,{file,manifest});return {ok:true,path:file.name,version:info.version,size:file.size,sha256:info.sha256};
   }),
   latestSimFirmware:guard(async()=>{
     cancelFirmwareFetch();const generation=firmwareGeneration;
@@ -64,7 +64,7 @@ const api = {
       const {file,manifest,metadata}=await fetchLatestSignedOad({signal:controller.signal});
       if(generation!==firmwareGeneration)return {ok:true,canceled:true};
       files.clear();files.set(file.name,{file,manifest});
-      return {ok:true,path:file.name,version:metadata.version,size:file.size,releaseCounter:metadata.releaseCounter};
+      return {ok:true,path:file.name,version:metadata.version,size:file.size,sha256:metadata.sha256,releaseCounter:metadata.releaseCounter,uploadedAt:metadata.uploadedAt,builtAt:metadata.builtAt};
     } catch(error) {
       if(generation!==firmwareGeneration)return {ok:true,canceled:true};
       throw new Error(error.name==='AbortError'?'Latest firmware timed out. Select a local OAD file.':error.message);

@@ -21,6 +21,6 @@ export async function fetchLatestSignedOad({signal,fetcher=fetch,trust}={}) {
     if(!sidecar.ok)throw new Error('Firmware manifest download failed');
     const manifest=await readLimited(sidecar,128);
     await validateSignedOad(bytes,manifest,m,trust);
-    return {metadata:m,file:new File([bytes],`T100_${m.version}_${m.sha256.slice(0,8)}_oad.bin`,{type:'application/octet-stream'}),manifest:new File([manifest],'BK3633_T100_oad.manifest',{type:'application/octet-stream'})};
+    return {metadata:m,file:new File([bytes],'T100_OAD.bin',{type:'application/octet-stream'}),manifest:new File([manifest],'T100_OAD.manifest',{type:'application/octet-stream'})};
   }
 }

@@ -19,9 +19,11 @@ test('signed publication stores and acknowledges a matching pair; replaces both 
   const f=signedFixture(),{handler,store}=service();assert.equal((await get(handler)).status,404);
   const published=await handler(upload(f));assert.equal(published.status,200);assert.deepEqual(await published.json(),{ok:true,status:'published',schemaVersion:2,releaseCounter:f.metadata.releaseCounter,manifestSha256:f.metadata.manifestSha256,sha256:f.metadata.sha256});
   const m=await (await get(handler)).json();
+  assert.ok(Number.isFinite(Date.parse(m.uploadedAt)));
   assert.deepEqual(Buffer.from(await (await get(handler,m.downloadUrl)).arrayBuffer()),f.bytes);
   assert.deepEqual(Buffer.from(await (await get(handler,m.manifestUrl)).arrayBuffer()),f.manifest);
   assert.equal((await (await handler(upload(f))).json()).status,'unchanged');
+  assert.equal((await (await get(handler)).json()).uploadedAt,m.uploadedAt);
   await handler(upload(signedFixture(2)));assert.equal((await get(handler,m.downloadUrl)).status,404);assert.equal((await get(handler,m.manifestUrl)).status,404);
   assert.equal([...store.entries.values()].filter(e=>e.data.firmware).length,1);
 });
@@ -52,6 +54,7 @@ test('signed client validates both files and retries replacement between their d
   const {handler}=service(),first=signedFixture(),second=signedFixture(2);await handler(upload(first));let replace=true;
   const fetcher=async(path,opts)=>{if(path.includes('/manifest/')&&replace){replace=false;await handler(upload(second));}return handler(new Request(`https://test${path}`,opts));};
   const bundle=await fetchLatestSignedOad({fetcher,trust});assert.equal(bundle.metadata.version,'0x0002');assert.deepEqual(Buffer.from(await bundle.manifest.arrayBuffer()),second.manifest);
+  assert.equal(bundle.file.name,'T100_OAD.bin');
   await assert.rejects(fetchLatestSignedOad({trust,fetcher:async(path,opts)=>path.includes('/manifest/')?new Response(first.manifest):fetcher(path,opts)}),/match/);
 });
 test('manifest uses exact unsigned 64-bit release values and rejects every signed-header mutation',async()=>{

@@ -653,16 +653,20 @@ function latestFixture() {
   const {bytes,manifest,metadata}=signedLatest;
   return {bytes:Buffer.from(bytes),manifest:Buffer.from(manifest),metadata:{...metadata,downloadUrl:`/api/ota/signed/download/${metadata.sha256}/${metadata.manifestSha256}`,manifestUrl:`/api/ota/signed/manifest/${metadata.sha256}/${metadata.manifestSha256}`}};
 }
+test.describe('firmware release details',()=>{
+test.use({timezoneId:'Asia/Shanghai'});
 test('latest OAD selects after connection without starting an upgrade',async({page})=>{
   const {bytes,manifest,metadata}=latestFixture();
+  metadata.uploadedAt='2026-10-10T07:30:00Z';
   await page.route('**/api/ota/signed/latest',route=>route.fulfill({json:metadata}));
   await page.route('**/api/ota/signed/download/**',route=>route.fulfill({body:bytes,contentType:'application/octet-stream'}));
   await page.route('**/api/ota/signed/manifest/**',route=>route.fulfill({body:manifest,contentType:'application/octet-stream'}));
   await mockBluetooth(page);await connect(page);
-  await expect(page.locator('#simFirmwareBtn')).toContainText('0x1234');
-  await expect(page.locator('#latestFirmwareStatus')).toContainText('Ready');
+  await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
+  await expect(page.locator('#latestFirmwareStatus')).toHaveText(`Version 0x1234 · 0.0 KB\nUploaded 2026-10-10 15:30:00\nSHA-256 ${metadata.sha256}`);
   await swipeTo(page,'oad');await expect(page.locator('#simOadBtn')).toBeEnabled();
   expect(await page.evaluate(()=>mock.writes.filter(w=>w.id.startsWith('0bb0')))).toEqual([]);
+});
 });
 test('latest OAD failure keeps manual selection available',async({page})=>{
   await page.route('**/api/ota/signed/latest',route=>route.fulfill({status:404,json:{error:'No published firmware'}}));
@@ -671,7 +675,8 @@ test('latest OAD failure keeps manual selection available',async({page})=>{
   await expect(page.locator('#simOadBtn')).toBeDisabled();
   const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
   await (await chooser).setFiles([{name:'local_oad.bin',mimeType:'application/octet-stream',buffer:latestFixture().bytes},{name:'local_oad.manifest',mimeType:'application/octet-stream',buffer:latestFixture().manifest}]);
-  await expect(page.locator('#simFirmwareBtn')).toHaveText('local_oad.bin');
+  await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
+  await expect(page.locator('#latestFirmwareStatus')).toContainText('Version 0x1234');
   await expect(page.locator('#simOadBtn')).toBeEnabled();
 });
 test('manual selection and disconnection supersede an outstanding latest download',async({page})=>{
@@ -683,7 +688,7 @@ test('manual selection and disconnection supersede an outstanding latest downloa
   await expect(page.locator('#latestFirmwareStatus')).toContainText('Loading');
   const chooser=page.waitForEvent('filechooser');await page.locator('#simFirmwareBtn').click();
   await (await chooser).setFiles([{name:'manual.bin',mimeType:'application/octet-stream',buffer:bytes},{name:'manual.manifest',mimeType:'application/octet-stream',buffer:manifest}]);
-  release();await expect(page.locator('#simFirmwareBtn')).toHaveText('manual.bin');
+  release();await expect(page.locator('#simFirmwareBtn')).toHaveText('T100_OAD.bin');
   await page.evaluate(()=>mock.disconnect());
   await expect(page.locator('#simFirmwareBtn')).toHaveText('Select OAD firmware');
   await expect(page.locator('#latestFirmwareStatus')).toContainText('Connect');

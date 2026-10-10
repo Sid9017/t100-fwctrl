@@ -210,4 +210,4 @@ h1,h2,p { margin-top:0; }
 .console-log .hud-chip-status { display:flex; gap:8px; padding:0 0 8px; color:var(--label); font:11px var(--mono); }
 .device-status-box { display:flex; flex-wrap:wrap; gap:8px; }
 
-#latestFirmwareStatus { margin:12px 0 0; font-size:13px; color:var(--muted); overflow-wrap:anywhere; }
+#latestFirmwareStatus { margin:12px 0 0; font-size:13px; line-height:1.6; color:var(--muted); white-space:pre-line; overflow-wrap:anywhere; }
