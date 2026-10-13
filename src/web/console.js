@@ -11,6 +11,7 @@ import scale from '../vendor/ble/core/fee0-scale-wire.js';
 import { runSignedOad } from './signed-oad.js';
 import { SIGNED_OTA_UUIDS, parseManifest } from './signed-ota-format.js';
 import { oadVersion } from './ota-format.js';
+import containerWire from '../vendor/ble/core/fee0-container-weight-wire.js';
 const { T100Session, canonicalUuid } = sessionModule;
 const { GATT, TOPICS } = protocol;
 const matches = (a,b) => canonicalUuid(a) === canonicalUuid(b) || (String(b).replaceAll('-','').length === 32 && uuidHelpers.uuidMatches128(a,b));
@@ -61,6 +62,7 @@ export class BrowserConsole extends DeviceActions {
       this.connection=connection; this.entry=entry;
       this.emit('PreviewReset', {deviceId:entry.ui.id});
       entry.ui.deviceStatus=null;
+      entry.ui.scaleReading=null;
       connection.native.on('disconnect',()=>{
         if (this.connection!==connection) return;
         if (this.abortRef) this.abortRef.aborted=true;
@@ -85,6 +87,7 @@ export class BrowserConsole extends DeviceActions {
       ]) {
         const update=value=>{
           if (this.connection!==connection) return;
+          if(key==='scaleReading'){this.publishScaleReading(connection,entry,value);return;}
           entry.ui[key]=format(value);
           if (key === 'deviceStatus' && Number.isInteger(value?.flags)) {
             entry.ui.bindState = (value.flags & 1) ? 'bound' : 'unbind';
@@ -93,8 +96,12 @@ export class BrowserConsole extends DeviceActions {
           this.emit(event,{deviceId:entry.ui.id,[key==='scaleReading'?'reading':key==='deviceStatus'?'status':key]:entry.ui[key]});
         };
         await optional(`${key} notifications`,()=>this.session[subscribe](connection,update));
+        const beforeScale=entry.ui.scaleReading;
         const value=await optional(`${key} read`,()=>this.session[read](connection));
-        if(value!==null) update(value);
+        if(value!==null){
+          if(key==='scaleReading')this.publishScaleReading(connection,entry,value,{checkSequence:entry.ui.scaleReading!==beforeScale});
+          else update(value);
+        }
       }
       if (!connection.active) throw new Error('Device disconnected during setup');
       this.emit('ScanUpsert',[entry.ui]);
@@ -248,6 +255,42 @@ export class BrowserConsole extends DeviceActions {
       await this.disconnect();this.emit('SessionIdle',{state:'idle'});
       return {...result,message:'Signed firmware committed by the device. Reconnect to verify firmware.',elapsedMs:Date.now()-started};
     },45*60*1000);
+  }
+  async readContainerSnapshot(connection) {
+    const entry=this.entry;
+    const before=entry?.ui.scaleReading;
+    const reading=await this.session.readScaleReading(connection);
+    if(!connection.active || this.connection!==connection)throw new Error('Device disconnected before container confirmation');
+    return this.publishScaleReading(connection,entry,reading,{checkSequence:entry.ui.scaleReading!==before});
+  }
+  publishScaleReading(connection,entry,reading,{checkSequence=false}={}) {
+    if(!connection.active || this.connection!==connection)return reading;
+    const previous=entry.ui.scaleReading;
+    // A pending Read may complete after a newer notification, including Reset.
+    // The sequence wraps at 255; suppress an older v3 snapshot in this session.
+    // Compare only if a notification arrived while the Read was pending.
+    // Normal ordered notifications must still work after arbitrarily long gaps.
+    if(checkSequence && previous?.version===3 && reading.version===3 && ((reading.sequence-previous.sequence+256)%256)>=128)return previous;
+    const formatted=scale.formatFee0ScaleReading(reading);
+    entry.ui.scaleReading=formatted;
+    this.emit('ScaleUpdate',{deviceId:entry.ui.id,reading:formatted});
+    return formatted;
+  }
+  async requireContainerSnapshot(connection) {
+    const reading=await this.readContainerSnapshot(connection);
+    if(reading.version!==3)throw new Error('Container UUID confirmation requires FEE1 v3 firmware');
+    if(containerWire.containerFromSnapshot(reading)===undefined)throw new Error('Open KCal weighing mode before setting or clearing a container');
+  }
+  async confirmContainerSnapshot(connection,payload,{timeoutMs=6000,pollMs=200}={}) {
+    const expected=payload[2]?{uuid:containerWire.containerUuid(payload.subarray(7)),mg:payload.readUInt32LE(3)}:null;
+    const deadline=Date.now()+timeoutMs;
+    do{
+      const reading=await this.readContainerSnapshot(connection),state=containerWire.containerFromSnapshot(reading);
+      if(expected?state?.uuid===expected.uuid && state.mg===expected.mg:state===null)return reading;
+      if(Date.now()>=deadline)break;
+      await new Promise(resolve=>setTimeout(resolve,pollMs));
+    }while(!this.abortRef?.aborted);
+    throw new Error('Container not confirmed: no matching FEE1 UUID and weight. Check KCal mode and retry.');
   }
   async discoverSignedOad(connection) {
     const cached=await this.discoverAll(connection),has=items=>items.some(s=>matches(s.uuid,SIGNED_OTA_UUIDS.service));

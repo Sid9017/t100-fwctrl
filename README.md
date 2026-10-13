@@ -158,8 +158,18 @@ Coffee stage/run flags follow status; a selected profile applies on the next
 Scale entry, as in firmware. Virtual P16/P17 keys are disabled while following a
 connected device because the BLE protocol has no physical-key command.
 
-FEE1 v2 is a 20-byte snapshot: signed main weight (KCal net), active profile/
+FEE1 v3 is a 36-byte snapshot (v2 20-byte reads remain supported): signed main weight (KCal net), active profile/
 stage, validity/overload/timer flags, typed upper/lower information and sequence.
+Bytes 20..35 carry the canonical container UUID. Container topic 0x77 v2 uses
+a fresh UUID for each Set (including 0g); Clear sends an all-zero UUID. Writes
+retain auth8 and are not reported successful until FEE1 confirms both UUID and
+weight. Active KCal cleared snapshots reset browser container state; Idle/other
+mode zero UUIDs do not. Old Read responses cannot overwrite a newer Reset
+notification. No container UUID is persisted as an auth credential. These 36-byte
+notifications and commands require ATT MTU >=39; Web Bluetooth relies on its
+platform MTU negotiation. Commands fail closed when firmware/MTU or active KCal
+confirmation is unavailable.
+
 Auxiliary mass and flow retain canonical mg/mg-per-second even when main weight
 is in 0.01 oz. The preview draws these supplied values directly using the shared
 firmware renderer, so net is not tared twice and coffee seconds do not drift.
@@ -170,7 +180,7 @@ snapshot schemas are rejected.
 FEE5 does not expose history entries/page, notification bitmap/color, countdown
 values, exact grounds/tare, battery overlay phase, or local key/Idle gestures. Successful countdown/container/notification writes from this
 browser are mirrored for the current connection; unknown content stays blank
-with an explanation outside the display. Coffee timing/flow follow FEE1 v2; the older five-byte path only estimates
+with an explanation outside the display. Coffee timing/flow follow FEE1 snapshots; the older five-byte path only estimates
 timing from observed run/pause flags. Unbound devices use the runtime's sample pairing identity.
 These protocol limits prevent exact live screen mirroring; reconnect clears the
 session's preview data. No firmware source files are modified by the build.

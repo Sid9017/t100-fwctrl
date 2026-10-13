@@ -12,7 +12,7 @@ import scaleWire from '../vendor/ble/core/fee0-scale-wire.js';
 import recipeWire from '../vendor/ble/core/fee0-coffee-recipe-wire.js';
 import profileWire from '../vendor/ble/core/fee0-weighing-profile-wire.js';
 import lightWire from '../vendor/ble/core/fee0-light-control-wire.js';
-const { buildContainerWeightPayload } = containerWire;
+const { buildContainerWeightPayload,containerUuid } = containerWire;
 
 const { GATT, TOPICS, UI_NAV_TARGETS } = protocol;
 const {
@@ -181,11 +181,12 @@ export class DeviceActions {
   async setContainerWeight(setting = {}) {
     const payload = buildContainerWeightPayload(setting);
     return this.runGattAction('Set KCal container weight', async () => {
+      const connection=this.requireConnection();
+      await this.requireContainerSnapshot(connection);
       await this.writeVendorPayloadWithOptionalAuth(payload);
-      this._previewCommit?.('container', {grams:payload[2] ? payload.readUInt32LE(3)/1000 : null});
-      return { ok: true, message: payload[2]
-        ? `Container weight command sent: ${payload.readUInt32LE(3) / 1000} g (KCal only, until Reset or reboot)`
-        : 'Clear container weight command sent' };
+      await this.confirmContainerSnapshot(connection,payload);
+      const uuid=payload[2]?containerUuid(payload.subarray(7)):null,grams=payload[2]?payload.readUInt32LE(3)/1000:null;
+      return {ok:true,uuid,grams,message:payload[2]?`Container confirmed: ${grams} g`:'Container cleared by the device'};
     });
   }
 

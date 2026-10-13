@@ -61,3 +61,12 @@ test('signed legacy weights and firmware half-away-from-zero grams formatting do
     const b=Buffer.alloc(5);b.writeInt32LE(mg,1);assert.equal(formatFee0ScaleReading(decodeFee0ScaleWire(b)).valueText,text);
   }
 });
+
+test('FEE1 v3 carries a nonzero container identity only for configured active KCal',()=>{
+  const b=Buffer.alloc(36);snapshot({flags:7,upper:100000,lower:350000}).copy(b);b[5]=3;Buffer.from('12345678123443218765123456789abc','hex').copy(b,20);
+  const r=decodeFee0ScaleWire(b);assert.equal(r.version,3);assert.equal(r.containerUuid,'12345678-1234-4321-8765-123456789abc');assert.equal(formatFee0ScaleReading(r).containerUuid,r.containerUuid);
+  b[8]=5;b.fill(0,20);assert.equal(decodeFee0ScaleWire(b).containerUuid,null);
+  b[8]=7;assert.equal(decodeFee0ScaleWire(b),null);
+  b[8]=0;b[9]=0;assert.ok(decodeFee0ScaleWire(b));
+  b[20]=1;assert.equal(decodeFee0ScaleWire(b),null);
+});

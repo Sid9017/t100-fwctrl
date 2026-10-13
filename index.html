@@ -115,10 +115,10 @@
                     </div>
                   </div>
                   <div id="simContainerFields">
-                    <label class="field"><span>Container weight (g)</span><input id="simContainerWeight" type="number" min="0" max="1999.9" step="0.1" value="100" /></label>
+                    <label class="field"><span>Container weight (g)</span><input id="simContainerWeight" type="number" min="0" max="1999.9" step="0.1" value="100" aria-describedby="simContainerStatus" /></label>
                     <div class="actions"><button id="simContainerSet" type="button">Set container weight</button><button id="simContainerClear" type="button">Clear container weight</button></div>
 
-                    <p id="simContainerStatus" role="status"></p>
+                    <p id="simContainerStatus" role="status" aria-atomic="true"></p>
                   </div>
                   <div id="simCoffeeRecipeFields" class="coffee-recipe-fields" hidden>
                     <div class="coffee-slider-grid">

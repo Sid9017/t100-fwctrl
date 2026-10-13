@@ -38,6 +38,10 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
           setTimeout(()=>{window.mock.resetConnectionSurvived=device.gatt.connected;window.mock.bound=false;device.gatt.disconnect();},400);
         }
         if(['fee2','fee3'].includes(id)&&data[0]===0x6a&&window.mock.failTheme)throw new Error('Injected theme upload failure');
+        if(['fee2','fee3'].includes(id)&&data[0]===0x77){
+          if(window.mock.lowMtuContainer)throw new Error('ATT MTU below 39');
+          if(!window.mock.skipContainerEcho)setTimeout(()=>window.mock.notifyContainer({mg:data[10]?new DataView(Uint8Array.from(data).buffer).getUint32(11,true):null,uuid:data[10]?(window.mock.wrongContainerUuid??data.slice(15,31)):null}),10);
+        }
         if(id===U.data && window.mock.oadDisconnect) { device.gatt.disconnect(); return; }
         if(id===U.control){
           if(data[0]===1){window.mock.otaState=1;window.mock.otaError=0;}
@@ -58,6 +62,15 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
       ['1805',[char('2a2b',{read:true,write:true},[0xea,7,10,8,12,0,0,4,0,0])]],
       [U.service,[char(U.control,{write:true}),char(U.data,{write:true}),char(U.status,{read:true,notify:true})]],
     ].map(([id,characters])=>({uuid:full(id),getCharacteristics:async()=>characters}));
+    const initialScale=new Uint8Array(36),initialView=new DataView(initialScale.buffer);
+    initialView.setInt32(1,123456,true);initialScale.set([3,3,0,5,1],5);initialScale[14]=2;initialView.setInt32(15,123456,true);
+    window.mock.scaleWire=initialScale;
+    chars.get('fee1').readValue=async()=>new DataView(Uint8Array.from(window.mock.scaleWire).buffer);
+    window.mock.notifyContainer=({mg=null,uuid=null,active=true,profile=3}={})=>{
+      const b=new Uint8Array(36),v=new DataView(b.buffer);v.setInt32(1,123456-(mg??0),true);b.set([3,profile,0,active?(mg===null?5:7):0,active?1:0],5);v.setInt32(10,mg??0,true);b[14]=active?2:0;v.setInt32(15,active?123456:0,true);
+      if(active&&mg!==null){const id=typeof uuid==='string'?uuid.replaceAll('-','').match(/../g).map(x=>parseInt(x,16)):uuid;b.set(id,20);}
+      b[19]=((window.mock.scaleWire?.[19]??0)+1)&255;window.mock.scaleWire=b;const c=chars.get('fee1');c.value=v;c.dispatchEvent(new Event('characteristicvaluechanged'));
+    };
     chars.get(U.status).readValue=async()=>{const bytes=new Uint8Array(12),v=new DataView(bytes.buffer);bytes.set([1,window.mock.otaState??0,window.mock.otaError??0,3]);v.setUint32(4,window.mock.otaOffset??0,true);v.setUint32(8,window.mock.otaSize??0,true);return v;};
     chars.get('2a26').readValue=async()=>new DataView(new TextEncoder().encode(window.mock.firmware).buffer);
     chars.get('fee5').readValue=async()=>new DataView(new Uint8Array([8,initialScreen,0,2,window.mock.bound?1:0,0,0,0]).buffer);
@@ -465,7 +478,7 @@ test('notification status uses Wasm PWM brightness through entry and exit',async
 test('image wheels drag and scroll, while star dragging increases and decreases rating',async({page})=>{
   await page.setViewportSize({width:1440,height:1100});await mockBluetooth(page);await connect(page);
   await page.locator('#historyCard').scrollIntoViewIfNeeded();
-  await expect(page.locator('#simContainerStatus')).toBeEmpty();
+  await expect(page.locator('#simContainerStatus')).toHaveText('No container set');
   const wheel=page.locator('#historyImageWheel1');
   let box=await wheel.boundingBox();
   await page.mouse.move(box.x+box.width/2,box.y+box.height/2+10);
@@ -785,4 +798,50 @@ test('FEE1 v2 reaches Wasm with signed net and independent info units; inactive 
   await page.evaluate(()=>mock.disconnect());
   await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_flags())).toBe(-1);
   expect(errors).toEqual([]);
+});
+
+test('container feedback visibly waits for the device before showing confirmed weight on mobile',async({page})=>{
+  await page.setViewportSize({width:375,height:812});
+  await mockBluetooth(page);await connect(page);await page.evaluate(()=>{mock.skipContainerEcho=true;});
+  await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
+  const status=page.locator('#simContainerStatus');
+  await expect(status).toBeVisible();await expect(status).toHaveAttribute('data-state','pending');
+  await expect(status).toHaveText('Waiting for device confirmation…');
+  await expect.poll(()=>page.evaluate(()=>mock.writes.filter(w=>w.data[0]===0x77).length)).toBe(1);
+  await page.evaluate(()=>{const data=mock.writes.find(w=>w.data[0]===0x77).data;mock.notifyContainer({mg:100000,uuid:data.slice(15,31)});});
+  await expect(status).toHaveAttribute('data-state','confirmed');await expect(status).toHaveText('Container confirmed: 100 g');
+  const box=await status.boundingBox();expect(box.width).toBeLessThanOrEqual(375);expect(box.height).toBeGreaterThanOrEqual(40);
+});
+test('container settings require matching UUID echo, renew identity at the same weight, and track physical Reset',async({page})=>{
+  await mockBluetooth(page);await connect(page);
+  await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
+  await expect(page.locator('#simContainerStatus')).toContainText('Container confirmed: 100 g');
+  const first=await page.locator('#simContainerFields').getAttribute('data-container-uuid');expect(first).toMatch(/^[0-9a-f-]{36}$/);
+  await page.locator('#simContainerSet').click();await expect.poll(()=>page.locator('#simContainerFields').getAttribute('data-container-uuid')).not.toBe(first);
+  await expect(page.locator('#simContainerStatus')).toContainText('Container confirmed');
+  const second=await page.locator('#simContainerFields').getAttribute('data-container-uuid');
+  await page.evaluate(()=>mock.notifyContainer({active:false}));
+  await expect(page.locator('#simContainerFields')).toHaveAttribute('data-container-uuid',second);
+  await expect(page.locator('#simContainerWeight')).toHaveValue('100');
+  await page.evaluate(()=>mock.notifyContainer({mg:null}));
+  await expect(page.locator('#simContainerFields')).toHaveAttribute('data-container-uuid','');await expect(page.locator('#simContainerWeight')).toHaveValue('');
+  await expect(page.locator('#simContainerStatus')).toHaveText('Container cleared by the device');
+  await page.locator('#simContainerWeight').fill('0');await page.locator('#simContainerSet').click();await expect(page.locator('#simContainerStatus')).toContainText('Container confirmed: 0 g');
+  expect(await page.locator('#simContainerFields').getAttribute('data-container-uuid')).not.toBe('');
+  await page.locator('#simContainerClear').click();await expect(page.locator('#simContainerStatus')).toHaveText('Container cleared by the device');await expect(page.locator('#simContainerFields')).toHaveAttribute('data-container-uuid','');
+  const writes=await page.evaluate(()=>mock.writes.filter(w=>w.data[0]===0x77));expect(writes.every(w=>w.data.length===31&&w.data[9]===2)).toBe(true);
+});
+test('wrong container UUID cannot be acknowledged even when weight matches',async({page})=>{
+  await mockBluetooth(page);await connect(page);await page.evaluate(()=>{mock.wrongContainerUuid='12345678-1234-4321-8765-123456789abc';});
+  await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
+  await expect(page.locator('#simContainerStatus')).toContainText('Container not confirmed',{timeout:12000});
+  await expect(page.locator('#simContainerStatus')).toHaveAttribute('data-state','error');
+  await page.evaluate(()=>mock.notifyContainer({mg:100000,uuid:mock.wrongContainerUuid}));
+  await expect(page.locator('#simContainerStatus')).toContainText('Container not confirmed');
+  await expect(page.locator('#simLog')).not.toContainText('Container confirmed:');
+});
+test('container MTU rejection leaves confirmation empty and does not report success',async({page})=>{
+  await mockBluetooth(page);await connect(page);await page.evaluate(()=>{mock.lowMtuContainer=true;});
+  await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
+  await expect(page.locator('#simContainerStatus')).toContainText('ATT MTU below 39');await expect(page.locator('#simContainerFields')).toHaveAttribute('data-container-uuid','');
 });

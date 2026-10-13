@@ -17,11 +17,13 @@ Adapters:
   and firmware PWM fades. The pairing barcode still uses sample identity.
 - app.js: browser transport, canvas brightness for PWM, English labels and layout.
 
-BLE controls remain in the parent app. FEE1 v2 scale snapshots and FEE5 status flow one way
+BLE controls remain in the parent app. FEE1 v2/v3 scale snapshots and FEE5 status flow one way
 into Wasm; virtual keys are disabled while connected. Successful countdown,
-container and immediate notification writes are mirrored for this connection.
+immediate notification writes are mirrored for this connection. Container state
+comes from FEE1, with UUID confirmation handled by the parent app. The appended
+v3 UUID does not change the Wasm drawing ABI.
 Unknown history/countdown/notification content is blank, explained outside the
-canvas. FEE1 v2 supplies signed main weight, typed upper/lower information, container/
+canvas. FEE1 v2/v3 supplies signed main weight, typed upper/lower information, container/
 Kitchen totals and coffee seconds/flow. It does not report every animation frame.
 FEE5 lacks history page, notification bitmap/color, battery overlay phase and
 local gesture state. Legacy five-byte readings have no auxiliary information.

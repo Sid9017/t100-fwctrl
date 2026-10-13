@@ -1,5 +1,6 @@
 import { renderHistoryControls } from './web/history-controls.js';
 import { oadVersion } from './web/ota-format.js';
+import containerWire from './vendor/ble/core/fee0-container-weight-wire.js';
 const DEVICE_TIME_IDLE = '--';
 const SIM_FIRMWARE_BTN_LABEL = 'Select OAD firmware';
 
@@ -24,6 +25,7 @@ const state = {
   simOadOutcomeAnimating: false,
   kcalHistBusy: false,
   containerBusy: false,
+  containerUuid: null,
   morphThemeBusy: false,
   histFoodItems: [],
   histFoodSelected: '',
@@ -1017,6 +1019,9 @@ async function persistWeighingProfile() {
 }
 
 function clearScaleDisplay() {
+  state.containerUuid=null;
+  refs.simContainerFields.dataset.containerUuid='';
+  refs.simContainerWeight.value='';setContainerStatus('');
   state.scaleReading = null;
   renderScaleDisplay(null);
   renderCoffeeControls();
@@ -1072,6 +1077,19 @@ function applyScaleReading(reading) {
     unitInput.dispatchEvent(new Event("unit-render"));
   }
   state.scaleReading = reading;
+  const container=containerWire.containerFromSnapshot(reading);
+  if(container!==undefined){
+    const previous=state.containerUuid;
+    state.containerUuid=container?.uuid??null;
+    refs.simContainerFields.dataset.containerUuid=state.containerUuid??'';
+    if(container){
+      if(!state.containerBusy && (previous!==container.uuid || document.activeElement!==refs.simContainerWeight))refs.simContainerWeight.value=String(container.mg/1000);
+      if(!state.containerBusy && (previous!==container.uuid || refs.simContainerStatus.dataset.state!=='error'))setContainerStatus(`Container confirmed: ${container.mg/1000} g`,'confirmed');
+    }else{
+      if(previous)refs.simContainerWeight.value='';
+      if(!state.containerBusy && (previous || refs.simContainerStatus.dataset.state!=='error'))setContainerStatus(previous?'Container cleared by the device':'No container set',previous?'confirmed':'neutral');
+    }
+  }
   renderScaleDisplay(reading);
   if (previousUnit !== reading.unit) renderCoffeeControls();
   else renderCoffeeProgress();
@@ -1123,7 +1141,7 @@ function updateActionButtons() {
   refs.simContainerSet.disabled = refs.simContainerClear.disabled =
     !canOperate || !isBound || state.simOadBusy || state.containerBusy;
   refs.simContainerWeight.disabled = state.containerBusy;
-  if (!state.connected) refs.simContainerStatus.textContent = '';
+  if (!state.connected) setContainerStatus('');
   for (const control of [
     refs.simCoffeeBaseRange,
     refs.simCoffeeBaseInput,
@@ -1948,17 +1966,23 @@ boot().catch((error) => {
   pushLog(formatFailureMessage('UI boot failed: ', error.message));
 });
 
+function setContainerStatus(message, kind='neutral') {
+  refs.simContainerStatus.textContent=message;
+  refs.simContainerStatus.dataset.state=kind;
+}
+
 async function sendContainerWeight(clear) {
   if (!state.connected || state.containerBusy) return;
   state.containerBusy = true;
+  setContainerStatus('Waiting for device confirmation…','pending');
   updateActionButtons();
   try {
     const result = await window.mfgApi.setContainerWeight({ grams: clear ? null : refs.simContainerWeight.value });
     if (!result || !result.ok) throw new Error(result?.message || 'Container weight command failed');
-    refs.simContainerStatus.textContent = result.message;
+    if(result.uuid===state.containerUuid)setContainerStatus(result.message,'confirmed');
     pushSimLog(result.message);
   } catch (error) {
-    refs.simContainerStatus.textContent = error.message || String(error);
+    setContainerStatus(error.message || String(error),'error');
     pushSimLog(formatFailureMessage('Container weight failed: ', refs.simContainerStatus.textContent));
   } finally {
     state.containerBusy = false;
