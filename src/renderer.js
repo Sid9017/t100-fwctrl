@@ -656,10 +656,10 @@ function coffeeDisplayMassText(mg) {
 
 function coffeeReadingMg() {
   const reading = state.scaleReading;
-  if (!reading || !Number.isFinite(Number(reading.value))) return 0;
+  if (!reading || reading.mainValid===false || !Number.isFinite(Number(reading.value))) return 0;
   return Number(reading.unit) === 1
     ? Math.round(Number(reading.value) * (MG_PER_OZ / 100))
-    : Math.max(0, Number(reading.value));
+    : Number(reading.value);
 }
 
 function setCoffeeSyncState(text, kind = '') {

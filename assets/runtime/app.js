@@ -155,6 +155,12 @@ function dispatch(type, data = {}) {
       break;
     }
     case 'detachStatus': liveStatus = null; pendingNotice = null; api.reset(); break;
+    case 'scaleSnapshot': {
+      const mg=data.unit===1?Math.round(data.value*283.49523125):data.value;
+      module.preview_apply_scale_snapshot(data.unit,data.profile,data.stage,data.flags,
+        Math.max(-2147483648,Math.min(2147483647,mg)),data.upper.kind,data.upper.value,data.lower.kind,data.lower.value);
+      break;
+    }
     case 'status':
       liveStatus = data;
       module.preview_apply_device_status(data.screen, data.phase ?? 0, data.mode ?? 2, data.flags ?? 0,
@@ -170,7 +176,7 @@ function dispatch(type, data = {}) {
     case 'openScale': $('openScale').click(); break;
     case 'mode': api.mode(validNumber(data.mode, 0, 3)); break;
     case 'reference': api.setReference(validNumber(data.page, -1, 22)); break;
-    case 'weight': api.weight(Math.round(validNumber(data.grams, -WEIGH_LIMIT_G, WEIGH_LIMIT_G) * 1000)); break;
+    case 'weight': module.preview_clear_scale_snapshot(); api.weight(Math.round(validNumber(data.grams, -WEIGH_LIMIT_G, WEIGH_LIMIT_G) * 1000)); break;
     case 'container': {
       const enabled = data.grams != null;
       const mg = enabled ? Math.round(Number(data.grams) * 1000) : 0;

@@ -17,6 +17,8 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
   await page.addInitScript(({name,record,token,bound,stored,cancel,storageFailure,failTheme,bindUuidForm,initialScreen,testKey,U,publishingKey,firmware})=>{
     if(stored && !localStorage.getItem('t100.mfg.auth.v1'))localStorage.setItem('t100.mfg.auth.v1',JSON.stringify([record]));
     if(storageFailure)Storage.prototype.setItem=()=>{throw new DOMException('Full','QuotaExceededError');};
+    const instantiate=WebAssembly.instantiate.bind(WebAssembly);
+    WebAssembly.instantiate=async(...args)=>{const result=await instantiate(...args);window.testWasm=result.instance?.exports??result.exports;return result;};
     // Browser fixtures use a disposable signer, never the production private key.
     const originalImport=crypto.subtle.importKey.bind(crypto.subtle);
     crypto.subtle.importKey=(format,keyData,algorithm,...rest)=>originalImport(format,format==='raw'&&algorithm.name==='ECDSA'&&Array.from(new Uint8Array(keyData.buffer??keyData,keyData.byteOffset??0,keyData.byteLength??keyData.length)).map(b=>b.toString(16).padStart(2,'0')).join('')===publishingKey?Uint8Array.from(testKey):keyData,algorithm,...rest);
@@ -84,6 +86,11 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
       bytes.set([bytes.length,screen,options.phase??0,options.mode??2,window.mock.bound?1:0,0,0,0]);
       if(profile!=null){bytes[8]=1;bytes[9]=profile;new DataView(bytes.buffer).setUint32(12,15000,true);new DataView(bytes.buffer).setUint32(16,240000,true);}
       c.value=new DataView(bytes.buffer);c.dispatchEvent(new Event('characteristicvaluechanged'));
+    };
+    window.mock.notifySnapshot=({unit=0,value=0,profile=3,stage=0,flags=5,upperKind=1,upper=0,lowerKind=2,lower=0,sequence=0}={})=>{
+      const bytes=new Uint8Array(20),v=new DataView(bytes.buffer);
+      bytes[0]=unit;v.setInt32(1,value,true);bytes.set([2,profile,stage,flags,upperKind],5);v.setInt32(10,upper,true);bytes[14]=lowerKind;v.setInt32(15,lower,true);bytes[19]=sequence;
+      const c=chars.get('fee1');c.value=v;c.dispatchEvent(new Event('characteristicvaluechanged'));
     };
     window.mock.notifyWeight=()=>{const c=chars.get('fee1');c.value=new DataView(new Uint8Array([0,0x20,0xa1,7,0]).buffer);c.dispatchEvent(new Event('characteristicvaluechanged'));};
     Object.defineProperty(navigator,'bluetooth',{configurable:true,value:{requestDevice:async options=>{
@@ -758,4 +765,24 @@ test('upgrade start rereads a changed device version and sends no OAD commands f
   expect(result.ok).toBe(false);expect(result.message).toContain('already runs');
   await expect(page.locator('#simOadBtn')).toBeDisabled();
   expect(await page.evaluate(()=>mock.writes.filter(w=>w.id.startsWith('0bb0')))).toEqual([]);
+});
+
+test('FEE1 v2 reaches Wasm with signed net and independent info units; inactive readings preserve Idle',async({page})=>{
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await mockBluetooth(page);await connect(page);
+  const frame=page.frameLocator('#runtimeFrame');
+  await page.evaluate(()=>mock.notifySnapshot({value:-25000,flags:7,upper:100000,lower:350000,sequence:255}));
+  await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_main_mg())).toBe(-25000);
+  expect(await frame.locator('body').evaluate(()=>testWasm.preview_snapshot_lower())).toBe(350000);
+  await page.evaluate(()=>mock.notifySnapshot({value:0,flags:7,upper:100000,lower:350000,sequence:0}));
+  await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_main_mg())).toBe(0);
+  await page.evaluate(()=>{mock.notifyStatus(7,1,{stage:2});mock.notifySnapshot({unit:1,value:-55,profile:1,stage:2,flags:23,upperKind:4,upper:17,lowerKind:5,lower:12300});});
+  await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_upper())).toBe(17);
+  expect(await frame.locator('body').evaluate(()=>testWasm.preview_snapshot_lower())).toBe(12300);
+  await expect(page.locator('#deviceUnitValue')).toHaveValue('1');
+  await page.evaluate(()=>{mock.notifyStatus(1);mock.notifySnapshot({flags:0,value:123000,upperKind:0,lowerKind:0});});
+  await expect(frame.locator('#sceneText')).toHaveText('Idle');
+  await page.evaluate(()=>mock.disconnect());
+  await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_flags())).toBe(-1);
+  expect(errors).toEqual([]);
 });

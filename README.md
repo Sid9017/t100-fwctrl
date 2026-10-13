@@ -148,7 +148,7 @@ The top bar has no disconnect button. The controls contain recipe settings, cont
 notifications and kcal history. The Wasm display is the only weight readout;
 preview-only inputs, target selection, device details and light controls are removed.
 
-The simulator follows FEE5 screen/phase and FEE1 weight without changing the scene
+The simulator follows FEE5 screen/phase and FEE1 snapshots without changing the scene
 when weight arrives. It uses the shared firmware C renderers and state machines.
 The host adapter models PWM fades with opaque framebuffer content, 40 ms dark
 uploads, native title/key transitions, history reveal, notification dismissal,
@@ -158,12 +158,20 @@ Coffee stage/run flags follow status; a selected profile applies on the next
 Scale entry, as in firmware. Virtual P16/P17 keys are disabled while following a
 connected device because the BLE protocol has no physical-key command.
 
+FEE1 v2 is a 20-byte snapshot: signed main weight (KCal net), active profile/
+stage, validity/overload/timer flags, typed upper/lower information and sequence.
+Auxiliary mass and flow retain canonical mg/mg-per-second even when main weight
+is in 0.01 oz. The preview draws these supplied values directly using the shared
+firmware renderer, so net is not tared twice and coffee seconds do not drift.
+KCal total is retained without a container; valid-zero container and unset are
+distinct. Legacy five-byte signed readings remain readable. Malformed or unknown
+snapshot schemas are rejected.
+
 FEE5 does not expose history entries/page, notification bitmap/color, countdown
-values, exact coffee elapsed time/grounds/tare, battery overlay phase, or local
-key/Idle gestures. Successful countdown/container/notification writes from this
+values, exact grounds/tare, battery overlay phase, or local key/Idle gestures. Successful countdown/container/notification writes from this
 browser are mirrored for the current connection; unknown content stays blank
-with an explanation outside the display. Coffee timing is estimated from observed
-run/pause flags. Unbound devices use the runtime's sample pairing identity.
+with an explanation outside the display. Coffee timing/flow follow FEE1 v2; the older five-byte path only estimates
+timing from observed run/pause flags. Unbound devices use the runtime's sample pairing identity.
 These protocol limits prevent exact live screen mirroring; reconnect clears the
 session's preview data. No firmware source files are modified by the build.
 

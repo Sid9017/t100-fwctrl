@@ -1,7 +1,7 @@
 T100 Web Runtime
 
 Rebuilt from bk-hw-temp/projects/t100/web_runtime and shared firmware sources,
-source checkout HEAD 9b729384dfdcb91562a778f2f19488b96f4023ae.
+source checkout HEAD af9fbbfce317457cc093823fc93dfc9c8da95770.
 
 Rebuild:
   node scripts/build-runtime.mjs /path/to/t100/web_runtime
@@ -17,12 +17,14 @@ Adapters:
   and firmware PWM fades. The pairing barcode still uses sample identity.
 - app.js: browser transport, canvas brightness for PWM, English labels and layout.
 
-BLE controls remain in the parent app. FEE1 weight and FEE5 status flow one way
+BLE controls remain in the parent app. FEE1 v2 scale snapshots and FEE5 status flow one way
 into Wasm; virtual keys are disabled while connected. Successful countdown,
 container and immediate notification writes are mirrored for this connection.
 Unknown history/countdown/notification content is blank, explained outside the
-canvas. FEE5 lacks exact coffee elapsed time, tare/session totals, history page,
-notification bitmap/color, battery overlay phase and local gesture state.
+canvas. FEE1 v2 supplies signed main weight, typed upper/lower information, container/
+Kitchen totals and coffee seconds/flow. It does not report every animation frame.
+FEE5 lacks history page, notification bitmap/color, battery overlay phase and
+local gesture state. Legacy five-byte readings have no auxiliary information.
 Therefore the preview is not an exact screen capture; see the main README.
 
 Verification:

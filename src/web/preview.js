@@ -30,8 +30,11 @@ export function attachPreview(service) {
       appliedStatus = signature;
     }
     if (reading && Number.isFinite(Number(reading.value)) && [0,1].includes(reading.unit)) {
-      runtime.dispatch('unit', {unit:reading.unit === 1 ? 'oz' : 'g'});
-      runtime.dispatch('weight', {grams:reading.unit === 1 ? reading.value / 100 * 28.349523125 : reading.value / 1000});
+      if(reading.version===2)runtime.dispatch('scaleSnapshot',reading);
+      else {
+        runtime.dispatch('unit', {unit:reading.unit === 1 ? 'oz' : 'g'});
+        runtime.dispatch('weight', {grams:reading.unit === 1 ? reading.value / 100 * 28.349523125 : reading.value / 1000});
+      }
     }
     statusLabel = `Bluetooth status · ${status.screenName || 'Unknown'} · ${status.phaseName || ''}`;
     source.textContent = statusLabel;

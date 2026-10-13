@@ -318,3 +318,14 @@ test('T100 session helpers validate write targets and time payloads', () => {
   assert.deepEqual(encodeUnixSecondsLe(0xffffffff), Buffer.from([0xff, 0xff, 0xff, 0xff]));
   assert.throws(() => encodeUnixSecondsLe(-1), /uint32/);
 });
+
+test('T100 session reads and subscribes complete signed FEE1 v2 snapshots',async()=>{
+  const adapter=new MockGattAdapter(),session=new T100Session({adapter});
+  const b=Buffer.alloc(20);b.writeInt32LE(-25000,1);b.set([2,3,0,7,1],5);b.writeInt32LE(100000,10);b[14]=2;b.writeInt32LE(350000,15);b[19]=255;
+  adapter.values.set(GATT.vendor.uplinkNotify,b);
+  const connection=await session.connect(adapter.devices[0]);
+  const reading=await session.readScaleReading(connection);assert.equal(reading.value,-25000);assert.equal(reading.lower.value,350000);
+  const events=[];await session.subscribeScaleNotify(connection,d=>events.push(d));
+  const zero=Buffer.from(b);zero.writeInt32LE(0,1);zero[19]=0;adapter.subscriptions[0].onData(zero);
+  adapter.subscriptions[0].onData(zero.subarray(0,19));assert.equal(events.length,1);assert.equal(events[0].value,0);assert.equal(events[0].sequence,0);assert.equal(events[0].upper.value,100000);
+});

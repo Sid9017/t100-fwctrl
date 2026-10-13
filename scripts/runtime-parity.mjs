@@ -9,6 +9,7 @@ export function adaptPreview(source) {
   replace('static void countdown(void) {', 'static void countdown(void) {\n    if (preview_unknown_content & 1u) return;');
   replace('static void notification(void) {', 'static void notification(void) {\n    if (preview_unknown_content & 4u) return;');
   replace('static void history(void) {', 'static void history(void) {\n    if (preview_unknown_content & 2u) return;');
+  replace('static void scale_page(void) {', 'static void scale_page(void) {\n    if (preview_snapshot_draw()) return;');
   replace('static void native_hint(void) {', `static void native_hint(void) {
     if (mode == DIET) { kcal_key_animation_t hint = kcal_key; hint.elapsed = 2u * UI_FULLSCREEN_FADE_MS;
         kcal_scale_view_key(pixels, &hint, unit_oz); return; }`);

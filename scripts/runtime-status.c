@@ -5,6 +5,10 @@ static unsigned char preview_idle_opacity = 255;
 static unsigned preview_power_freeze;
 static unsigned preview_unknown_content;
 static unsigned history_settle_ms, battery_settle_ms;
+static unsigned scale_snapshot_known;
+static int snapshot_profile, snapshot_stage, snapshot_flags, snapshot_main;
+static int snapshot_upper_kind, snapshot_upper, snapshot_lower_kind, snapshot_lower;
+static int preview_snapshot_draw(void);
 #define preview_tick preview_local_tick
 #define preview_reset preview_local_reset
 #define preview_backlight_level preview_local_backlight_level
@@ -16,6 +20,56 @@ static unsigned history_settle_ms, battery_settle_ms;
 #undef preview_backlight_level
 #undef history_pager_tick
 #undef battery_ui_tick
+/* Steady FEE1 values go directly to shared firmware drawing functions. Never
+ * derive KCal net from gross again or advance a remote coffee timer locally. */
+static int preview_snapshot_draw(void) {
+    if (!scale_snapshot_known) return 0;
+    static const int profiles[] = {KITCHEN, AMERICANO, POUROVER, DIET};
+    if (!(snapshot_flags & 1) || profiles[snapshot_profile] != mode) {
+        for (unsigned i=0;i<W*H;i++) pixels[i]=0;
+        return 1;
+    }
+    if (snapshot_flags & 8) {
+        kcal_scale_view_draw(pixels,2000000,-1,0,(uint8_t)unit_oz);
+    } else if (mode == DIET) {
+        kcal_scale_view_draw(pixels,
+            (snapshot_flags & 4) && snapshot_lower_kind==2 ? snapshot_lower : 0,
+            (snapshot_flags & 2) && snapshot_upper_kind==1 ? snapshot_upper : -1,
+            snapshot_main,(uint8_t)unit_oz);
+    } else if (mode == KITCHEN) {
+        int64_t accumulated=(snapshot_flags & 4) && snapshot_lower_kind==2 ?
+            (int64_t)snapshot_lower-snapshot_main : 0;
+        int32_t sum=accumulated>INT32_MAX?INT32_MAX:accumulated<0?0:(int32_t)accumulated;
+        kitchen_scale_view_draw(pixels,
+            (snapshot_flags & 2) && snapshot_upper_kind==3 ? snapshot_upper : -1,
+            sum,snapshot_main,(uint8_t)unit_oz);
+    } else {
+        unsigned started=(snapshot_flags & 2) && snapshot_upper_kind==4;
+        unsigned elapsed=started && snapshot_upper>0 ? (unsigned)snapshot_upper : 0;
+        unsigned flow=(snapshot_flags & 4) && snapshot_lower_kind==5 && snapshot_lower>0 ? (unsigned)snapshot_lower : 0;
+        if (elapsed>599)elapsed=599;
+        if (mode == POUROVER) pourover_scale_view_draw(pixels,snapshot_main,unit_oz,
+            snapshot_stage==2,started,elapsed*1000,flow,
+            pourover_target_mg(snapshot_stage==2?water_target_mg:primary_target_mg,snapshot_stage==2),pour_progress);
+        else espresso_scale_view_draw(pixels,snapshot_main,unit_oz,snapshot_stage==2,started,elapsed*1000,flow);
+    }
+    return 1;
+}
+void preview_apply_scale_snapshot(int unit,int profile,int stage,int flags,int main_mg,
+                                 int upper_kind,int upper,int lower_kind,int lower) {
+    if (profile<0 || profile>3 || unit<0 || unit>1) return;
+    scale_snapshot_known=1;snapshot_profile=profile;snapshot_stage=stage;snapshot_flags=flags;
+    snapshot_main=main_mg;snapshot_upper_kind=upper_kind;snapshot_upper=upper;
+    snapshot_lower_kind=lower_kind;snapshot_lower=lower;
+    unit_oz=unit;
+    if (flags & 1) weight_mg=profile==3 && (flags & 4) && lower_kind==2 ? lower : main_mg;
+    preview_render();
+}
+void preview_clear_scale_snapshot(void) { scale_snapshot_known=0; }
+int preview_snapshot_main_mg(void) { return snapshot_main; }
+int preview_snapshot_flags(void) { return scale_snapshot_known?snapshot_flags:-1; }
+int preview_snapshot_upper(void) { return snapshot_upper; }
+int preview_snapshot_lower(void) { return snapshot_lower; }
 void battery_ui_tick(uint32_t ms);
 int preview_boot_backlight(void);
 void preview_battery_tick(uint32_t ms) {
@@ -65,6 +119,7 @@ static int remote_target(int screen) {
     }
 }
 void preview_detach_status(void) {
+    scale_snapshot_known=0;
     last_status_screen = -1; remote_profile = -1; remote_active = 0;
     remote_flags=0;remote_coffee_stage=0;
     countdown_known = notify_known = preview_unknown_content = 0;
