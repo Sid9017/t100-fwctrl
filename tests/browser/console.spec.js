@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { generateKeyPairSync, sign } from 'node:crypto';
+import {readFile} from 'node:fs/promises';
 import {signedFixture,testPublicKey} from '../fixtures/signed-ota.js';
 import {SIGNED_OTA_UUIDS as U,OTA_PUBLIC_KEY_HEX} from '../../src/web/signed-ota-format.js';
 const {privateKey,publicKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
@@ -799,6 +800,53 @@ test('FEE1 v2 reaches Wasm with signed net and independent info units; inactive 
   await page.evaluate(()=>mock.disconnect());
   await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_flags())).toBe(-1);
   expect(errors).toEqual([]);
+});
+
+test('auth backup imports pasted credentials atomically, merges devices and exports a local JSON backup',async({page})=>{
+  await mockBluetooth(page,{stored:false});await page.goto('/');
+  await page.locator('#authBackupBtn').click();
+  await expect(page.locator('#authBackupDialog')).toBeVisible();
+  await expect(page.locator('#authBackupCount')).toHaveText('No saved devices');
+  await expect(page.locator('#authExportBtn')).toBeDisabled();
+  await page.locator('#authImportText').fill('{bad}');await page.locator('#authImportTextBtn').click();
+  await expect(page.locator('#authBackupStatus')).toContainText('Invalid JSON');
+  const second={...record,pub_key:'036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296',name:'YD-036b17d1f2e1',deviceId:'another'};
+  await page.locator('#authImportText').fill(JSON.stringify([record,{...second,auth_key:'short'}]));await page.locator('#authImportTextBtn').click();
+  await expect(page.locator('#authBackupStatus')).toContainText('Record 2: auth_key');
+  expect(await page.evaluate(()=>localStorage.getItem('t100.mfg.auth.v1'))).toBeNull();
+  await page.locator('#authImportText').fill(JSON.stringify([record,second]));await page.locator('#authImportTextBtn').click();
+  await expect(page.locator('#authBackupCount')).toHaveText('2 saved devices');
+  await expect(page.locator('#authBackupStatus')).toContainText('Imported 2');
+  await expect(page.locator('#authImportText')).toHaveValue('');
+  const updated={...record,auth_key:'NEW12345'};
+  await page.locator('#authImportText').fill(JSON.stringify(updated));await page.locator('#authImportTextBtn').click();
+  await expect(page.locator('#authBackupStatus')).toContainText('Imported 1');
+  await expect(page.locator('#authBackupCount')).toHaveText('2 saved devices');
+  const [download]=await Promise.all([page.waitForEvent('download'),page.locator('#authExportBtn').click()]);
+  expect(download.suggestedFilename()).toBe('t100-auth-backup.json');
+  const exported=JSON.parse(await readFile(await download.path(),'utf8'));
+  expect(exported).toEqual(expect.arrayContaining([updated,second]));expect(exported).toHaveLength(2);
+  await page.keyboard.press('Escape');await expect(page.locator('#authBackupDialog')).toBeHidden();
+  await expect(page.locator('#authBackupBtn')).toBeFocused();
+});
+test('mobile auth backup opens before connection, validates files and restores authenticated control',async({page})=>{
+  await page.setViewportSize({width:375,height:812});await mockBluetooth(page,{stored:false});await page.goto('/');
+  await page.getByText('Actions',{exact:true}).click();await page.locator('#authBackupBtn').click();
+  await expect(page.locator('#authBackupDialog')).toBeVisible();
+  const [chooser]=await Promise.all([page.waitForEvent('filechooser'),page.locator('#authImportFileBtn').click()]);
+  await chooser.setFiles({name:'auth.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify([{...record,auth_key:'wrong'}]))});
+  await expect(page.locator('#authBackupStatus')).toContainText('auth_key must be exactly 8');
+  const [validChooser]=await Promise.all([page.waitForEvent('filechooser'),page.locator('#authImportFileBtn').click()]);
+  await validChooser.setFiles({name:'auth.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify([record]))});
+  await expect(page.locator('#authBackupCount')).toHaveText('1 saved device');
+  await expect(page.locator('#authBackupStatus')).toContainText('Imported 1');
+  const bounds=await page.locator('#authBackupDialog').evaluate(el=>({width:el.clientWidth,scrollWidth:el.scrollWidth,bottom:el.getBoundingClientRect().bottom}));
+  expect(bounds.scrollWidth).toBeLessThanOrEqual(bounds.width);expect(bounds.bottom).toBeLessThanOrEqual(813);
+  await page.screenshot({path:'/tmp/t100-auth-backup-mobile.png'});
+  await page.locator('#authBackupClose').click();await page.getByRole('button',{name:'Select Bluetooth Device'}).click();
+  await expect(page.locator('#simStateText')).toHaveText('Connected');
+  const result=await page.evaluate(()=>mfgApi.scaleTare());expect(result.ok).toBe(true);
+  expect(await page.evaluate(()=>mock.writes.find(w=>w.data[0]===0x61).data.slice(1,9))).toEqual([...Buffer.from(record.auth_key)]);
 });
 
 test('Idle container preconfiguration preserves the page and waits for an active UUID echo',async({page})=>{

@@ -50,6 +50,7 @@
           <button title="Bind, install preset1 emotion, then reboot" id="simBindBtn" class="disconnect-link bind-link" type="button" disabled>BIND</button>
           <button id="simResetBtn" class="disconnect-link" type="button" disabled>RESET</button>
           <button id="factoryBtn" class="disconnect-link" type="button" disabled>FACTORY</button>
+          <button id="authBackupBtn" class="auth-backup-trigger" type="button">Auth backup</button>
             </div>
           </details>
           <button id="logDrawerToggle" class="ghost-btn" type="button" aria-expanded="false">Activity</button>
@@ -336,6 +337,25 @@
       </aside>
     </div>
 
+    <dialog id="authBackupDialog" class="auth-backup-dialog" aria-labelledby="authBackupTitle" aria-describedby="authBackupDescription">
+      <div class="auth-backup-header">
+        <div><p class="section-kicker">Browser storage</p><h2 id="authBackupTitle">Auth backup</h2></div>
+        <button id="authBackupClose" type="button" aria-label="Close auth backup">Close</button>
+      </div>
+      <p id="authBackupDescription" class="auth-backup-description">Restore your device credentials or save a copy for another browser.</p>
+      <div class="auth-backup-saved">
+        <div><span>This browser</span><strong id="authBackupCount">No saved devices</strong></div>
+        <button id="authExportBtn" type="button" disabled>Export JSON</button>
+      </div>
+      <label class="auth-backup-input" for="authImportText">Import credentials</label>
+      <textarea id="authImportText" rows="5" placeholder="Paste an auth JSON object or array…" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="authImportHelp authBackupStatus"></textarea>
+      <p id="authImportHelp" class="auth-backup-help">Required: pub_key and auth_key. Matching devices are updated; other saved devices are kept.</p>
+      <div class="auth-backup-actions">
+        <button id="authImportFileBtn" type="button">Choose JSON file</button>
+        <button id="authImportTextBtn" class="auth-import-primary" type="button" disabled>Import JSON</button>
+      </div>
+      <p id="authBackupStatus" class="auth-backup-status" role="status" aria-atomic="true"></p>
+    </dialog>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>

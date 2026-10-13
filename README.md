@@ -148,6 +148,15 @@ The top bar has no disconnect button. The controls contain recipe settings, cont
 notifications and kcal history. The Wasm display is the only weight readout;
 preview-only inputs, target selection, device details and light controls are removed.
 
+The header's **Auth backup** action is available before connection (inside **Actions**
+on mobile). Its dialog accepts pasted JSON or a local JSON file and exports saved
+credentials as `t100-auth-backup.json`. Imports validate the complete batch before
+writing: JSON object/array structure, compressed P-256 public-key format and curve
+membership, exactly eight printable ASCII auth characters, and optional string
+name/deviceId fields. Errors identify the offending record. Matching credentials
+are merged and other devices preserved; saved device names remain authoritative
+across browsers. Credentials stay in local storage and are never sent to a server.
+
 The simulator follows FEE5 screen/phase and FEE1 snapshots without changing the scene
 when weight arrives. It uses the shared firmware C renderers and state machines.
 The host adapter models PWM fades with opaque framebuffer content, 40 ms dark

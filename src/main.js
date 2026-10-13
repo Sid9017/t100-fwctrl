@@ -74,21 +74,25 @@ const api = {
     const bundle=files.get(firmwarePath);if(!bundle) throw new Error('Select signed OAD firmware and manifest first.');
     return service.downloadOad(bundle.file,bundle.manifest);
   }),
-  importAuth:guard(async()=>{
-    const file=await selectFile('.json,application/json');
-    if(!file)return {ok:true,canceled:true};
-    if(file.size>1024*1024)throw new Error('Auth JSON is too large.');
+  authInfo:guard(async()=>({ok:true,count:service.auth.records().length})),
+  importAuth:guard(async(text)=>{
+    if(typeof text!=='string'){
+      const file=await selectFile('.json,application/json');
+      if(!file)return {ok:true,canceled:true};
+      if(file.size>1024*1024)throw new Error('Auth JSON is too large.');
+      text=await file.text();
+    }
     if(service.busy)throw new Error('Wait for the current device action before importing auth.');
-    const count=service.auth.import(await file.text());
-    return {ok:true,message:`Imported ${count} credential(s) into browser storage.`};
+    const count=service.auth.import(text);
+    return {ok:true,message:`Imported ${count} ${count===1?'credential':'credentials'} into browser storage.`};
   }),
   exportAuth:()=>{
     try {
       const records=service.auth.records();
       const url=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'}));
-      const a=document.createElement('a');a.href=url;a.download='t100-auth-backup.json';a.click();
+      const a=document.createElement('a');a.href=url;a.download='t100-auth-backup.json';document.body.append(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
-      return {ok:true,message:`Exported ${records.length} credential(s). Keep this backup private.`};
+      return {ok:true,message:`Exported ${records.length} ${records.length===1?'credential':'credentials'}. Keep this backup private.`};
     } catch(error) { return {ok:false,message:error.message}; }
   },
 };
@@ -100,6 +104,8 @@ for (const event of ['ScanUpdate','ScanUpsert','ScanRemove','ScanReset','Session
   'ScaleUpdate','StatusUpdate','SimOadProgress','SimActionLog','ActionBusy']) api[`on${event}`]=callback=>service.on(event,callback);
 
 window.mfgApi=api;
+const {mountAuthBackup}=await import('./web/auth-backup.js');
+mountAuthBackup(api);
 window.addEventListener('pagehide',()=>{void service.disconnect();});
 await import('./renderer.js');
 if(!support.ok)document.getElementById('simRefreshScanBtn').disabled=true;

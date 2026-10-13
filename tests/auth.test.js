@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, sign } from 'node:crypto';
-import { AuthStore } from '../src/web/auth-store.js';
+import { AuthStore,parseAuthImport } from '../src/web/auth-store.js';
 import { verifyAdmissionToken } from '../src/web/auth.js';
 class Storage {
   values=new Map();
   getItem(key){return this.values.get(key)||null;}
   setItem(key,value){this.values.set(key,value);}
 }
-const pub=`02${'ab'.repeat(32)}`;
+const pub='036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296';
 const device={id:'browser-device',name:`YD-${pub.slice(0,12)}`};
 const record={pub_key:pub,auth_key:'abcd1234',deviceId:device.id,name:device.name};
 test('credentials persist across store instances and match identity after browser id changes',()=>{
@@ -63,5 +63,32 @@ test('credentials use selected names even when token identity differs, and remov
   assert.equal(store.resolve(cached).auth_key,'new12345');
   store.remove({...cached,id:'changed-again'});
   assert.equal(store.resolve(cached),null);
+  assert.equal(store.records().length,1);
+});
+test('auth import checks JSON, required fields, types and the P-256 curve before mutating storage',()=>{
+  const store=new AuthStore(new Storage());store.save(record);
+  const before=JSON.stringify(store.records());
+  for(const [value,pattern] of [
+    ['{bad}',/Invalid JSON/],['[]',/at least one/],['null',/Record 1: Expected/],['true',/Expected/],
+    [JSON.stringify({...record,pub_key:undefined}),/pub_key/],
+    [JSON.stringify({...record,pub_key:'04'+'a'.repeat(64)}),/pub_key/],
+    [JSON.stringify({...record,pub_key:'02'+'ab'.repeat(32)}),/P-256 curve point/],
+    [JSON.stringify({...record,auth_key:12345678}),/auth_key/],
+    [JSON.stringify({...record,auth_key:'short'}),/auth_key/],
+    [JSON.stringify({...record,auth_key:'1234567\n'}),/auth_key/],
+    [JSON.stringify({...record,auth_key:'1234567中'}),/auth_key/],
+    [JSON.stringify({...record,name:42}),/name must be a string/],
+    [JSON.stringify({...record,deviceId:{}}),/deviceId must be a string/],
+    [JSON.stringify([record,{...record,auth_key:'bad'}]),/Record 2: auth_key/],
+  ]){assert.throws(()=>store.import(value),pattern);assert.equal(JSON.stringify(store.records()),before);}
+  assert.throws(()=>parseAuthImport(' '.repeat(1024*1024+1)),/1 MB/);
+});
+test('auth import accepts uppercase and BOM, preserves named backup identities and legacy field aliases',()=>{
+  const store=new AuthStore(new Storage());
+  const named={...record,name:'YD-03b93ed7594b'};
+  store.import('\ufeff'+JSON.stringify([{...named,pub_key:pub.toUpperCase()}]));
+  assert.deepEqual(store.records(),[named]);
+  store.import(JSON.stringify({device_p256_pub_hex:pub,session_auth:'new12345'}));
+  assert.equal(store.resolve({name:named.name}).auth_key,'new12345');
   assert.equal(store.records().length,1);
 });
