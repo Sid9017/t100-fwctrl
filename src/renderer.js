@@ -26,6 +26,7 @@ const state = {
   kcalHistBusy: false,
   containerBusy: false,
   containerUuid: null,
+  containerPending: null,
   morphThemeBusy: false,
   histFoodItems: [],
   histFoodSelected: '',
@@ -1005,7 +1006,7 @@ async function persistWeighingProfile() {
       throw new Error((result && result.message) || 'Scale mode write failed');
     }
     state.coffee.hydrated = true;
-    setCoffeeSyncState('SAVED · NEXT ENTRY', 'saved');
+    setCoffeeSyncState('PROFILE SENT');
     pushSimLog(result.message);
   } catch (error) {
     setCoffeeSyncState('ERROR', 'error');
@@ -1020,6 +1021,7 @@ async function persistWeighingProfile() {
 
 function clearScaleDisplay() {
   state.containerUuid=null;
+  state.containerPending=null;
   refs.simContainerFields.dataset.containerUuid='';
   refs.simContainerWeight.value='';setContainerStatus('');
   state.scaleReading = null;
@@ -1088,6 +1090,16 @@ function applyScaleReading(reading) {
     }else{
       if(previous)refs.simContainerWeight.value='';
       if(!state.containerBusy && (previous || refs.simContainerStatus.dataset.state!=='error'))setContainerStatus(previous?'Container cleared by the device':'No container set',previous?'confirmed':'neutral');
+    }
+    if(!state.containerBusy && state.containerPending){
+      const expected=state.containerPending;
+      const matches=expected.uuid===null?container===null:container?.uuid===expected.uuid && container.mg===Math.round(expected.grams*1000);
+      if(matches)setContainerStatus(container?`Container confirmed: ${container.mg/1000} g`:'Container cleared by the device','confirmed');
+      else{
+        if(container===null)refs.simContainerWeight.value='';
+        setContainerStatus('Container not confirmed: device reports a different container. Set it again.','error');
+      }
+      state.containerPending=null;
     }
   }
   renderScaleDisplay(reading);
@@ -1974,18 +1986,21 @@ function setContainerStatus(message, kind='neutral') {
 async function sendContainerWeight(clear) {
   if (!state.connected || state.containerBusy) return;
   state.containerBusy = true;
+  state.containerPending=null;
   setContainerStatus('Waiting for device confirmation…','pending');
   updateActionButtons();
   try {
     const result = await window.mfgApi.setContainerWeight({ grams: clear ? null : refs.simContainerWeight.value });
     if (!result || !result.ok) throw new Error(result?.message || 'Container weight command failed');
-    if(result.uuid===state.containerUuid)setContainerStatus(result.message,'confirmed');
+    if(result.confirmed===false){state.containerPending={uuid:result.uuid,grams:result.grams};setContainerStatus(result.message,'pending');}
+    else if(result.uuid===state.containerUuid)setContainerStatus(result.message,'confirmed');
     pushSimLog(result.message);
   } catch (error) {
     setContainerStatus(error.message || String(error),'error');
     pushSimLog(formatFailureMessage('Container weight failed: ', refs.simContainerStatus.textContent));
   } finally {
     state.containerBusy = false;
+    if(state.containerPending && state.scaleReading)applyScaleReading(state.scaleReading);
     updateActionButtons();
   }
 }

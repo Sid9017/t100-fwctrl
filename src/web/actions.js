@@ -173,7 +173,7 @@ export class DeviceActions {
       await this.writeVendorPayloadWithOptionalAuth(payload);
       return {
         ok: true,
-        message: 'Scale mode saved; it applies on the next scale entry',
+        message: 'Scale mode command sent; Idle preserves the page, other allowed pages restart weighing',
       };
     });
   }
@@ -182,11 +182,18 @@ export class DeviceActions {
     const payload = buildContainerWeightPayload(setting);
     return this.runGattAction('Set KCal container weight', async () => {
       const connection=this.requireConnection();
-      await this.requireContainerSnapshot(connection);
+      const active=await this.requireContainerSnapshot(connection);
       await this.writeVendorPayloadWithOptionalAuth(payload);
-      await this.confirmContainerSnapshot(connection,payload);
       const uuid=payload[2]?containerUuid(payload.subarray(7)):null,grams=payload[2]?payload.readUInt32LE(3)/1000:null;
-      return {ok:true,uuid,grams,message:payload[2]?`Container confirmed: ${grams} g`:'Container cleared by the device'};
+      // Idle intentionally hides container values in FEE1. Preserve that page
+      // and defer confirmation until the device enters KCal weighing.
+      if(!active){
+        const reading=await this.readContainerSnapshot(connection);
+        if(containerWire.containerFromSnapshot(reading)===undefined && [1,2].includes(this.entry?.ui.deviceStatus?.screen))
+          return {ok:true,confirmed:false,uuid,grams,message:'Container command sent; enter KCal weighing to confirm'};
+      }
+      await this.confirmContainerSnapshot(connection,payload);
+      return {ok:true,confirmed:true,uuid,grams,message:payload[2]?`Container confirmed: ${grams} g`:'Container cleared by the device'};
     });
   }
 

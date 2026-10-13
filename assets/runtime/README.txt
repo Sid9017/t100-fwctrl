@@ -1,7 +1,7 @@
 T100 Web Runtime
 
 Rebuilt from bk-hw-temp/projects/t100/web_runtime and shared firmware sources,
-source checkout HEAD af9fbbfce317457cc093823fc93dfc9c8da95770.
+source checkout HEAD ba117b4de604f60bc6289b5b59c3609b474d27f6.
 
 Rebuild:
   node scripts/build-runtime.mjs /path/to/t100/web_runtime
@@ -13,6 +13,8 @@ Adapters:
   PWM/40 ms dark-upload behavior, native KCal keys and Idle Sleep opacity.
 - scripts/runtime-status.c: FEE5 snapshots, screen transitions, coffee stage/run,
   board LCD/LED fades, battery/history dark upload and missing-content handling.
+  Active FEE5 profile changes start the corresponding Scale entry. Idle profile
+  updates preserve the page; entry and local mode welcomes hold titles for 600 ms.
 - scripts/runtime-boot.c: shared native boot/barcode drawing with opaque frames
   and firmware PWM fades. The pairing barcode still uses sample identity.
 - app.js: browser transport, canvas brightness for PWM, English labels and layout.

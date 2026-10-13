@@ -279,7 +279,10 @@ export class BrowserConsole extends DeviceActions {
   async requireContainerSnapshot(connection) {
     const reading=await this.readContainerSnapshot(connection);
     if(reading.version!==3)throw new Error('Container UUID confirmation requires FEE1 v3 firmware');
-    if(containerWire.containerFromSnapshot(reading)===undefined)throw new Error('Open KCal weighing mode before setting or clearing a container');
+    if(containerWire.containerFromSnapshot(reading)!==undefined)return true;
+    const status=this.entry?.ui.deviceStatus;
+    if(reading.profile===3 && [1,2].includes(status?.screen) && status.mode===2)return false;
+    throw new Error('Select KCal in Idle or open KCal weighing before setting or clearing a container');
   }
   async confirmContainerSnapshot(connection,payload,{timeoutMs=6000,pollMs=200}={}) {
     const expected=payload[2]?{uuid:containerWire.containerUuid(payload.subarray(7)),mg:payload.readUInt32LE(3)}:null;

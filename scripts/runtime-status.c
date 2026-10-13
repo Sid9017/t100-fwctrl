@@ -141,8 +141,9 @@ int preview_power_led_opacity(void) {
 static void remote_select(int target, int first, int profile) {
     unsigned source_level=preview_backlight_level();
     int old_scene=scene;
-    if (target == SCALE && (scene != SCALE || first)) {
-        static const int profiles[] = {KITCHEN, AMERICANO, POUROVER, DIET};
+    static const int profiles[] = {KITCHEN, AMERICANO, POUROVER, DIET};
+    if (target == SCALE && (scene != SCALE || first ||
+        (profile >= 0 && profile <= 3 && mode != profiles[profile]))) {
         if (profile >= 0 && profile <= 3) mode = profiles[profile];
         coffee_session_reset(); session_count=session_mg=kitchen_last_mg=0;
         kcal_container_clear_tare(); pour_progress=0;

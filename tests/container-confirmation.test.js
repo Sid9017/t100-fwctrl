@@ -30,3 +30,12 @@ test('a live Reset after more than half a sequence cycle is still accepted',()=>
   service.publishScaleReading(connection,service.entry,{...reading(null,0),sequence:200});
   assert.equal(service.entry.ui.scaleReading.containerUuid,null);
 });
+test('Idle permits preconfiguration without claiming an inactive FEE1 confirmed the container',async()=>{
+  for(const screen of [1,2]){
+    const {service,connection}=fixture(async()=>({...reading(null,0),mainValid:false,upper:{kind:0,value:0,valid:false}}));
+    service.entry.ui.deviceStatus={screen,mode:2};
+    assert.equal(await service.requireContainerSnapshot(connection),false);
+    service.entry.ui.deviceStatus={screen:6,mode:2};
+    await assert.rejects(service.requireContainerSnapshot(connection),/Select KCal/);
+  }
+});

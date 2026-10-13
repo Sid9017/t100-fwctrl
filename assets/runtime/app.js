@@ -19,12 +19,15 @@ function beginIdleGesture(side) {
   g.mask |= bit;
   if (g.mask === 3 && !g.chord) {
     g.chord = true;
-    g.timer = setTimeout(() => {
-      if (idleGesture === g && g.mask === 3 && !g.fired) {
+    const repeat = () => {
+      if (idleGesture !== g || g.mask !== 3 || api.scene() !== 0) return;
+      if (!g.fired || !api.introActive()) {
         g.fired = true;
         dispatch('key', { key: 'both', hold: true });
       }
-    }, 1000);
+      g.timer = setTimeout(repeat, 40);
+    };
+    g.timer = setTimeout(repeat, 1000);
   }
   return true;
 }

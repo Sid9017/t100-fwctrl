@@ -22,6 +22,8 @@ test('observed Scale entry plays the native title, with dark upload and PWM; sna
   x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),title);
   status(x,4);x.preview_set_weight(123500);assert.deepEqual(pixels(x),title);
   x.preview_tick(75);assert.equal(x.preview_backlight_level(),255);
+  x.preview_tick(599);assert.equal(x.preview_backlight_level(),255);assert.deepEqual(pixels(x),title);
+  x.preview_tick(1);assert.equal(x.preview_backlight_level(),255);
   x.preview_tick(150);assert.equal(x.preview_backlight_level(),0);
   const weight=pixels(x);assert.notDeepEqual(weight,title);
   x.preview_tick(40);assert.equal(x.preview_backlight_level(),0);
@@ -36,6 +38,8 @@ test('Countdown hands the black frame to the Scale title without overlapping pag
   x.preview_tick(40);assert.equal(x.preview_backlight_level(),0);
   const title=pixels(x);x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),title);
   x.preview_tick(75);assert.equal(x.preview_backlight_level(),255);
+  x.preview_tick(599);assert.equal(x.preview_backlight_level(),255);assert.deepEqual(pixels(x),title);
+  x.preview_tick(1);assert.equal(x.preview_backlight_level(),255);
   x.preview_tick(150);assert.equal(x.preview_backlight_level(),0);
   assert.notDeepEqual(pixels(x),title);
   x.preview_tick(190);assert.equal(x.preview_backlight_level(),255);
@@ -48,7 +52,7 @@ test('Scale exit and Countdown transitions preserve the old pixels throughout fa
   }
 });
 for(const key of [0,1])test(`KCal key ${key} uses four hardware-style PWM ramps, not pixel fades`,async()=>{
-  const x=await runtime();x.preview_key(0);x.preview_tick(1000);x.preview_set_weight(350000);x.preview_container_topic(1,100000);
+  const x=await runtime();x.preview_key(0);x.preview_tick(1600);x.preview_set_weight(350000);x.preview_container_topic(1,100000);
   const before=pixels(x);x.preview_key(key);x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),before);
   x.preview_tick(75);const hint=pixels(x);assert.equal(x.preview_backlight_level(),0);assert.notDeepEqual(hint,before);
   x.preview_tick(40);assert.equal(x.preview_backlight_level(),0);x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),hint);
@@ -65,17 +69,26 @@ test('History holds the black entry frame for 40 ms before the native staggered 
   x.preview_tick(1);assert.equal(x.preview_backlight_level(),255);assert.equal(x.history_pager_opacity(),0);
   x.preview_tick(90);assert.equal(x.history_pager_opacity(),127);x.preview_tick(90);assert.equal(x.history_pager_active(),0);
 });
-test('coffee stage and run/pause follow FEE5 flags; the selected profile applies on the next Scale entry',async()=>{
+test('coffee stage and run/pause follow FEE5; active profiles switch immediately while Idle preserves the page',async()=>{
   const x=await runtime();status(x,4,{profile:1});assert.equal(x.preview_mode(),2);assert.equal(x.preview_stage(),0);
   status(x,4,{profile:1,stage:2,flags:1|(1<<11)|(1<<12)});assert.equal(x.preview_stage(),1);assert.equal(x.preview_timer_running(),1);
   x.preview_tick(1000);assert.equal(x.preview_timer_ms(),1000);
   status(x,4,{profile:1,stage:2,flags:1|(1<<12)});x.preview_tick(1000);assert.equal(x.preview_timer_ms(),1000);
-  status(x,4,{profile:2,stage:2,flags:1|(1<<12)});assert.equal(x.preview_mode(),2);
+  status(x,4,{profile:2,stage:2,flags:1|(1<<12)});assert.equal(x.preview_mode(),3);
+  x.preview_tick(1600);
   status(x,1,{profile:2});x.preview_tick(400);status(x,4,{profile:2});assert.equal(x.preview_mode(),3);assert.equal(x.preview_stage(),0);
 });
 test('Notify EXITING starts dismissal before FEE5 changes the screen back to Idle',async()=>{
   const x=await runtime();status(x,1);status(x,6);x.preview_tick(340);status(x,6,{phase:2});x.preview_tick(75);mid(x);
   x.preview_tick(75);assert.equal(x.preview_scene(),0);assert.equal(x.preview_backlight_level(),0);
+});
+test('Idle profile updates preserve a preset container and never start weighing',async()=>{
+  const x=await runtime();status(x,1);x.preview_container_topic(1,100000);
+  for(const profile of [0,1,2,3]){
+    status(x,1,{profile});assert.equal(x.preview_scene(),0);assert.equal(x.preview_intro_active(),0);
+    assert.equal(x.preview_container_mg(),100000);
+  }
+  status(x,4,{profile:3});assert.equal(x.preview_mode(),0);assert.equal(x.preview_container_mg(),100000);
 });
 test('reset and board sleep fade the panel without confusing Idle Sleep with power-off',async()=>{
   const x=await runtime();status(x,1);const old=pixels(x);status(x,1,{board:4});x.preview_tick(75);mid(x);
@@ -90,7 +103,7 @@ test('unknown content stays blank; committed countdown uses the firmware rendere
   x.preview_reset();status(x,3,{phase:1});assert.equal(x.preview_remote_missing(),1);assert.ok(pixels(x).every(v=>v===0));
 });
 test('Kitchen holds grow for 500 ms after PWM entry and cancel before completion',async()=>{
-  const x=await runtime();x.preview_set_mode(1);x.preview_key(0);x.preview_tick(1000);
+  const x=await runtime();x.preview_set_mode(1);x.preview_key(0);x.preview_tick(1600);
   x.preview_set_weight(100000);x.preview_key(0);x.preview_tick(700);x.preview_set_weight(30000);
   x.preview_kitchen_hold(1,1);x.preview_tick(340);assert.equal(x.preview_backlight_level(),255);
   x.preview_tick(499);x.preview_kitchen_hold(1,0);x.preview_tick(700);
@@ -104,7 +117,7 @@ test('white lights follow the firmware 600 ms power ramp independently of the 15
   status(x,1,{board:2});x.preview_tick(300);assert.equal(x.preview_power_led_opacity(),127);
 });
 test('battery cues freeze pixels through PWM, settle in darkness, and resume the previous scene',async()=>{
-  const x=await runtime();x.preview_key(0);x.preview_tick(1000);x.preview_set_weight(350000);const original=pixels(x);
+  const x=await runtime();x.preview_key(0);x.preview_tick(1600);x.preview_set_weight(350000);const original=pixels(x);
   x.preview_battery_power(1,0);x.preview_tick(75);mid(x);assert.deepEqual(pixels(x),original);
   x.preview_tick(75);const battery=pixels(x);assert.notDeepEqual(battery,original);assert.equal(x.preview_backlight_level(),0);
   x.preview_tick(40);assert.equal(x.preview_backlight_level(),0);x.preview_tick(150);assert.equal(x.preview_backlight_level(),255);

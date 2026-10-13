@@ -40,7 +40,7 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
         if(['fee2','fee3'].includes(id)&&data[0]===0x6a&&window.mock.failTheme)throw new Error('Injected theme upload failure');
         if(['fee2','fee3'].includes(id)&&data[0]===0x77){
           if(window.mock.lowMtuContainer)throw new Error('ATT MTU below 39');
-          if(!window.mock.skipContainerEcho)setTimeout(()=>window.mock.notifyContainer({mg:data[10]?new DataView(Uint8Array.from(data).buffer).getUint32(11,true):null,uuid:data[10]?(window.mock.wrongContainerUuid??data.slice(15,31)):null}),10);
+          if(!window.mock.skipContainerEcho)setTimeout(()=>window.mock.notifyContainer(window.mock.containerIdle?{active:false}:{mg:data[10]?new DataView(Uint8Array.from(data).buffer).getUint32(11,true):null,uuid:data[10]?(window.mock.wrongContainerUuid??data.slice(15,31)):null}),10);
         }
         if(id===U.data && window.mock.oadDisconnect) { device.gatt.disconnect(); return; }
         if(id===U.control){
@@ -64,6 +64,7 @@ async function mockBluetooth(page,{bound=true,stored=true,cancel=false,storageFa
     ].map(([id,characters])=>({uuid:full(id),getCharacteristics:async()=>characters}));
     const initialScale=new Uint8Array(36),initialView=new DataView(initialScale.buffer);
     initialView.setInt32(1,123456,true);initialScale.set([3,3,0,5,1],5);initialScale[14]=2;initialView.setInt32(15,123456,true);
+    if([1,2].includes(initialScreen)){initialScale[8]=initialScale[9]=initialScale[14]=0;initialView.setInt32(15,0,true);}
     window.mock.scaleWire=initialScale;
     chars.get('fee1').readValue=async()=>new DataView(Uint8Array.from(window.mock.scaleWire).buffer);
     window.mock.notifyContainer=({mg=null,uuid=null,active=true,profile=3}={})=>{
@@ -800,6 +801,25 @@ test('FEE1 v2 reaches Wasm with signed net and independent info units; inactive 
   expect(errors).toEqual([]);
 });
 
+test('Idle container preconfiguration preserves the page and waits for an active UUID echo',async({page})=>{
+  await mockBluetooth(page,{initialScreen:1});await connect(page);
+  await page.evaluate(()=>{mock.containerIdle=true;mock.notifyStatus(1,3);});
+  const frame=page.frameLocator('#runtimeFrame'),status=page.locator('#simContainerStatus');
+  await expect(frame.locator('#sceneText')).toHaveText('Idle');
+  await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
+  await expect(status).toHaveText('Container command sent; enter KCal weighing to confirm');
+  await expect(status).toHaveAttribute('data-state','pending');
+  await expect(page.locator('#simContainerFields')).toHaveAttribute('data-container-uuid','');
+  await expect(frame.locator('#sceneText')).toHaveText('Idle');
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.data[0]===0x72).length)).toBe(0);
+  await page.evaluate(()=>{const data=mock.writes.find(w=>w.data[0]===0x77).data;mock.notifyStatus(4,3);mock.notifyContainer({mg:100000,uuid:data.slice(15,31)});});
+  await expect(status).toHaveText('Container confirmed: 100 g');await expect(status).toHaveAttribute('data-state','confirmed');
+  await page.evaluate(()=>{mock.notifyStatus(1,3);mock.notifyContainer({active:false});});
+  await expect(status).toHaveText('Container confirmed: 100 g');
+  await page.locator('#simContainerClear').click();await expect(status).toHaveText('Container command sent; enter KCal weighing to confirm');
+  await page.evaluate(()=>{mock.notifyStatus(4,3);mock.notifyContainer();});
+  await expect(status).toHaveText('Container cleared by the device');await expect(page.locator('#simContainerWeight')).toHaveValue('');
+});
 test('container feedback visibly waits for the device before showing confirmed weight on mobile',async({page})=>{
   await page.setViewportSize({width:375,height:812});
   await mockBluetooth(page);await connect(page);await page.evaluate(()=>{mock.skipContainerEcho=true;});

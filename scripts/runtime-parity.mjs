@@ -4,7 +4,7 @@ export function adaptPreview(source) {
     if (!source.includes(before)) throw new Error(`Upstream WebRuntime changed: ${before.slice(0, 90)}`);
     source = source.replace(before, after);
   };
-  replace('#define PREVIEW_INTRO_MS (2u * UI_FULLSCREEN_FADE_MS + PREVIEW_CONTENT_MS)', '#define PREVIEW_INTRO_MS (40u + 2u * UI_FULLSCREEN_FADE_MS + PREVIEW_CONTENT_MS)');
+  replace('#define PREVIEW_INTRO_MS (2u * UI_FULLSCREEN_FADE_MS + UI_MODE_TITLE_HOLD_MS + PREVIEW_CONTENT_MS)', '#define PREVIEW_INTRO_MS (40u + 2u * UI_FULLSCREEN_FADE_MS + UI_MODE_TITLE_HOLD_MS + PREVIEW_CONTENT_MS)');
   replace('emotion_theme_draw(pixels,t,0,320,1,255);', 'emotion_theme_draw(pixels,t,0,320,1,preview_idle_opacity);');
   replace('static void countdown(void) {', 'static void countdown(void) {\n    if (preview_unknown_content & 1u) return;');
   replace('static void notification(void) {', 'static void notification(void) {\n    if (preview_unknown_content & 4u) return;');

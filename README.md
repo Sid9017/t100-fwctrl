@@ -154,8 +154,12 @@ The host adapter models PWM fades with opaque framebuffer content, 40 ms dark
 uploads, native title/key transitions, history reveal, notification dismissal,
 boot/barcode and battery transitions. Idle Sleep uses native mouth opacity 51/255;
 board sleep/reset fades the display over 150 ms and LEDs over 600 ms.
-Coffee stage/run flags follow status; a selected profile applies on the next
-Scale entry, as in firmware. Virtual P16/P17 keys are disabled while following a
+Coffee stage/run flags follow status. Profile selection in Idle/Idle Sleep keeps
+the current page and preserves preset container/tare; selection from other allowed
+pages restarts weighing, including same-mode requests. Active profile changes in
+FEE5 update the Wasm mode immediately. Scale entry titles hold fully lit for 600 ms
+between 150 ms fades; local Idle dual holds repeat after each complete welcome.
+Virtual P16/P17 keys are disabled while following a
 connected device because the BLE protocol has no physical-key command.
 
 FEE1 v3 is a 36-byte snapshot (v2 20-byte reads remain supported): signed main weight (KCal net), active profile/
@@ -168,7 +172,9 @@ mode zero UUIDs do not. Old Read responses cannot overwrite a newer Reset
 notification. No container UUID is persisted as an auth credential. These 36-byte
 notifications and commands require ATT MTU >=39; Web Bluetooth relies on its
 platform MTU negotiation. Commands fail closed when firmware/MTU or active KCal
-confirmation is unavailable.
+confirmation is unavailable. Idle KCal container preconfiguration sends the command
+without navigating and remains pending until an active KCal FEE1 echoes the UUID
+and weight (or confirms a clear). A write acknowledgement alone never confirms it.
 
 Auxiliary mass and flow retain canonical mg/mg-per-second even when main weight
 is in 0.01 oz. The preview draws these supplied values directly using the shared
@@ -178,7 +184,10 @@ distinct. Legacy five-byte signed readings remain readable. Malformed or unknown
 snapshot schemas are rejected.
 
 FEE5 does not expose history entries/page, notification bitmap/color, countdown
-values, exact grounds/tare, battery overlay phase, or local key/Idle gestures. Successful countdown/container/notification writes from this
+values, exact grounds/tare, battery overlay phase, or local key/Idle gestures.
+It also has no session counter to identify a same-mode Scale restart or distinguish
+an Idle key welcome from a remote profile save; those transitions cannot be inferred
+from an unchanged status. Successful countdown/notification writes from this
 browser are mirrored for the current connection; unknown content stays blank
 with an explanation outside the display. Coffee timing/flow follow FEE1 snapshots; the older five-byte path only estimates
 timing from observed run/pause flags. Unbound devices use the runtime's sample pairing identity.
