@@ -4,7 +4,7 @@
   <view class="card" wx:if="{{hasKnownDevices || connected}}">
     <view class="device-info-row"><text class="device-info-name">{{connected ? deviceName : knownDeviceRows[0].name}}</text><view class="status-mark {{connected ? 'online' : ''}}"/><text class="muted">{{stateLabel}}</text></view>
     <view class="line row"><text class="muted">Firmware</text><text>{{connected ? firmware : knownDeviceRows[0].firmware || '—'}}</text></view>
-    <view class="device-actions"><button class="device-action reset-action" disabled="{{!canControl || working}}" bindtap="resetDevice">Reset</button><button wx:if="{{hasPublishedUpdate}}" class="device-action primary" disabled="{{!canOad || working}}" bindtap="startInlineOad">OAD</button></view>
+    <view class="device-actions"><button class="device-action reset-action" disabled="{{working || busy || connecting || adding || planSyncing}}" bindtap="resetDevice">{{connected ? 'Reset' : 'Remove'}}</button><button wx:if="{{hasPublishedUpdate}}" class="device-action primary" disabled="{{!canOad || working}}" bindtap="startInlineOad">OAD</button></view>
     <view class="oad-reveal {{showOadProgress ? 'is-open' : ''}}"><view class="oad-inner"><view class="row"><text class="muted">{{oadProgress >= 100 ? 'Transfer complete' : 'OAD'}}</text><text>{{progressText}}%</text></view><view class="progress"><view style="{{'width:'+oadProgress+'%;'}}"/></view></view></view>
   </view>
   <view class="card" wx:else><text class="muted">No device yet.</text></view>

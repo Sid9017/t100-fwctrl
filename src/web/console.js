@@ -139,12 +139,14 @@ export class BrowserConsole extends DeviceActions {
     if(!record && required) throw new Error('No browser auth credential for this device. Bind it or import its auth JSON.');
     return {ctx:{deviceP256PubHex:record?.pub_key},auth8:record?Buffer.from(record.auth_key,'ascii'):null};
   }
-  async writeVendorPayloadWithOptionalAuth(payload,options={}) {
+  async writeVendorPayloadWithOptionalAuth(payload,options={},beforeWrite) {
     const {connection,entry}=this.requireConnectedEntry();
     const {characteristics}=await this.discoverAll(connection);
     const publicTopic=[TOPICS.factoryReset,TOPICS.bindCommit,TOPICS.lightControl].includes(payload[0]);
     const {auth8}=publicTopic?{auth8:null}:await this.runFeeSessionAuth(connection,entry,characteristics,true);
-    return this.session.writeVendorPayload(connection,buildFee0VendorWirePayload(payload,{auth8}),{requireWriteResponse:true,...options});
+    const wire=buildFee0VendorWirePayload(payload,{auth8});
+    await beforeWrite?.();
+    return this.session.writeVendorPayload(connection,wire,{requireWriteResponse:true,...options});
   }
   async runGattAction(label,action,timeoutMs=15000) {
     if(this.busy || this.connecting || this.selecting) throw new Error(`${label}: another Bluetooth action is in progress`);
@@ -216,10 +218,10 @@ export class BrowserConsole extends DeviceActions {
       ? 'Device disconnected; reconnect to verify reset.'
       : 'No device reboot observed within 6 seconds; connection closed. Reconnect to verify reset.';
   }
-  async resetDevice() {
+  async resetDevice({beforeReset}={}) {
     return this.runGattAction('Reset',async()=>{
       const {entry,connection}=this.requireConnectedEntry();
-      await this.writeVendorPayloadWithOptionalAuth([TOPICS.reset]);
+      await this.writeVendorPayloadWithOptionalAuth([TOPICS.reset],{},beforeReset);
       const cleanupWarning=this.clearCredential(entry.device);
       this._actionLog('Reset command written. Waiting for device restart…');
       const outcome=await this.waitForResetDisconnect(connection);

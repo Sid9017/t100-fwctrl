@@ -12,12 +12,12 @@ import {WechatGattAdapter} from './gatt.js';
 import {KnownDeviceStore} from './device-store.js';
 const {canonicalUuid}=sessionModule;
 export class MiniService {
-  constructor(api,{adapter=new WechatGattAdapter(api),deviceStore=new KnownDeviceStore(api),scanMs=10000}={}) {
-    this.api=api;this.auth=new AuthStore(miniStorage(api));this.firmwareGeneration=0;this.firmwareBundle=null;
+  constructor(api,{adapter=new WechatGattAdapter(api),deviceStore=new KnownDeviceStore(api),journal=null,scanMs=10000}={}) {
+    this.api=api;this.journal=journal;this.auth=new AuthStore(miniStorage(api));this.firmwareGeneration=0;this.firmwareBundle=null;
     this.actions=new BrowserConsole({adapter,auth:this.auth,bluetooth:null,verifyToken:verifyMiniToken,loadEmotion:loadMiniPreset,rasterFood:miniRasterFood(api),oadTrust:{subtle:miniSubtle}});
     this.adapter=adapter;this.deviceStore=deviceStore;this.session=this.actions.session;this.listeners=new Set();this.devices=new Map();this.nearbyDevices=new Map();this.connection=null;this.connecting=false;this.scanMs=scanMs;this.scanTimer=null;this.scanGeneration=0;
     this.state={lastWeighingState:deviceStore.list()[0]?.lastWeighing||null,activity:[],busy:false,actionName:'',feedback:'',previewCommits:[],authCount:0,hasAuth:false,containerState:null,containerPending:null,containerMessage:'',firmwareLoading:false,firmwareInfo:null,firmwareError:'',oadProgress:0,bridgeOnly:!!adapter.bridgeOnly,devices:[],knownDevices:deviceStore.list(),nearbyDevices:[],scanning:false,scanStats:null,scanComplete:false,connecting:false,connectingDeviceId:null,connected:false,device:null,firmware:'--',battery:null,mtu:null,reading:null,status:null,warnings:deviceStore.loadError?[deviceStore.loadError]:[],error:''};
-    this.actions.on('ScanUpsert',rows=>{const row=rows.find(item=>item.id===this.state.device?.id);if(row?.firmware)this.update({firmware:row.firmware});});
+    this.actions.on('ScanUpsert',rows=>{const row=rows.find(item=>item.id===this.state.device?.id);if(row?.firmware)this.publish('firmware',row.firmware);});
     this.actions.on('ActionBusy',({busy})=>this.update({busy}));
     this.actions.on('SimActionLog',({line,progressKey})=>this.log(line,progressKey));
     this.actions.on('PreviewCommit',data=>this.update({previewCommits:[...this.state.previewCommits.filter(row=>row.name!==data.name),{...data,...(data.gray?{gray:Array.from(data.gray)}:{}),id:(this.commitSeq=(this.commitSeq||0)+1)}]}));
@@ -28,8 +28,13 @@ export class MiniService {
   log(line,progressKey){line=String(line).replace(/browser/gi,'Mini Program');const rows=this.state.activity.filter(row=>!progressKey||row.progressKey!==progressKey);this.update({activity:[...rows,{line,time:new Date().toLocaleTimeString(),...(progressKey?{progressKey}:{})}].slice(-120)});}
   updateAuth(){try{this.update({authCount:this.auth.records().length,hasAuth:!!(this.state.device&&this.auth.resolve(this.state.device))});}catch(error){this.update({hasAuth:false,error:error.message.replace(/browser/gi,'Mini Program')});}}
   publish(key,value){
+    if(this.removing)return;
     if(this.actions.entry)this.actions.entry.ui[key==='reading'?'scaleReading':key==='status'?'deviceStatus':key==='battery'?'batteryLevel':key]=value;
     const patch={[key]:value};
+    if(key==='firmware'&&this.state.connected){
+      try{patch.knownDevices=this.deviceStore.saveFirmware(this.state.device,value);}
+      catch{patch.warnings=[...this.state.warnings.filter(w=>w!=='Firmware version could not be saved.'),'Firmware version could not be saved.'];}
+    }
     if(key==='status'&&this.actions.entry)this.actions.entry.ui.bindState=value.flags&1?'bound':'unbind';
     if(key==='reading'){
       const container=containerWire.containerFromSnapshot(value);
@@ -52,7 +57,7 @@ export class MiniService {
   onChange(fn) {this.listeners.add(fn);fn(this.state);return ()=>this.listeners.delete(fn);}
   update(patch) {this.state={...this.state,...patch};for(const fn of this.listeners)fn(this.state);}
   async scan() {
-    if(this.connecting||this.state.busy)return;
+    if(this.removing||this.connecting||this.state.busy)return;
     await this.stopScan();const generation=this.scanGeneration;this.devices.clear();this.nearbyDevices.clear();this.update({devices:[],nearbyDevices:[],error:'',scanning:true,scanComplete:false,scanStats:null});
     try{
       await this.adapter.startScan({onProgress:scanStats=>{if(generation===this.scanGeneration)this.update({scanStats});},onNearbyDevice:device=>{if(generation!==this.scanGeneration)return;const {native,...row}=device;this.nearbyDevices.set(device.id,row);this.update({nearbyDevices:[...this.nearbyDevices.values()]});}},device=>{if(generation!==this.scanGeneration)return;this.devices.set(device.id,device);this.update({devices:[...this.devices.values()].map(({native,...row})=>row)});});
@@ -62,7 +67,7 @@ export class MiniService {
   }
   async stopScan() {const wasScanning=this.state.scanning;this.scanGeneration++;clearTimeout(this.scanTimer);this.scanTimer=null;try{await this.adapter.stopScan();}finally{this.update({scanning:false,...(wasScanning?{scanComplete:true}:{})});}}
   async connect(id) {
-    if(this.connecting||this.state.busy)return;
+    if(this.removing||this.connecting||this.state.busy)return;
     if(this.state.connected&&this.state.device?.id===id)return;
     const device=this.devices.get(id)||this.state.knownDevices.find(row=>row.id===id);if(!device)throw new Error('Scan and select a KCALACK first');
     const saved=this.state.knownDevices[0];if(saved&&saved.name.toLowerCase()!==device.name.toLowerCase())throw new Error('Remove your current device before adding another.');
@@ -96,6 +101,17 @@ export class MiniService {
     }catch(error){await this.disconnect();this.update({error:error.message});throw error;}
     finally{this.connecting=false;this.update({connecting:false,connectingDeviceId:null});}
   }
+  async addDevice(id) {
+    if(this.state.adding||this.state.busy||this.connecting)throw new Error('Wait for device setup to finish.');
+    this.update({adding:true,setupPhase:'connecting',error:''});
+    try{
+      await this.connect(id);
+      this.update({setupPhase:'binding'});
+      // bindDevice also authenticates, installs preset1, commits it and reboots.
+      // It refuses to overwrite an existing binding without its credential.
+      await this.invoke('bindDevice');
+    }finally{this.update({adding:false,setupPhase:''});}
+  }
   async refresh() {
     if(this.state.busy)throw new Error('Wait for the current device action');
     const connection=this.connection;if(!connection?.active)throw new Error('Connect a T100 first');
@@ -112,7 +128,30 @@ export class MiniService {
     if(connection){this.session.clearVendorDownlinkCache(connection);await this.adapter.disconnect(connection);}
     this.update({connected:false,device:null,mtu:null,reading:null,status:null,battery:null,firmware:'--',nearbyDevices:[],devices:[],scanComplete:false,hasAuth:false,containerState:null,containerPending:null,containerMessage:'',previewCommits:[],firmwareInfo:null,firmwareLoading:false});
   }
-  async removeDevice(){if(this.state.busy||this.connecting)throw new Error('Wait for the current device action.');const knownDevices=this.deviceStore.remove();try{await this.disconnect();}finally{this.update({knownDevices,lastWeighingState:null});}}
+  clearDeviceLocal(device){
+    const saved=this.deviceStore.list();
+    this.auth.remove(device);
+    this.journal?.forgetDevice([...new Set([device.id,...saved.map(row=>row.id)])]);
+    const knownDevices=this.deviceStore.remove();
+    this.devices.clear();this.nearbyDevices.clear();this.firmwareGeneration++;this.firmwareBundle=null;
+    this.update({knownDevices,lastWeighingState:null,hasAuth:false,authCount:this.auth.records().length,containerState:null,containerPending:null,containerMessage:'',previewCommits:[],reading:null,status:null,firmwareInfo:null,firmwareLoading:false,firmwareError:'',oadProgress:0,planSyncError:'',activity:[],feedback:'',devices:[],nearbyDevices:[],scanStats:null,scanComplete:false});
+  }
+  async removeDevice({reset=false}={}){
+    if(this.removing||this.state.busy||this.state.adding||this.state.planSyncing||this.state.actionName||this.connecting)throw new Error('Wait for the current device action.');
+    const device=this.state.device||this.deviceStore.list()[0];if(!device)return;
+    if(reset&&!this.connection?.active)throw new Error('Device disconnected. Use Remove to clear its local data.');
+    this.removing=true;let cleared=false;
+    this.update({actionName:reset?'resetDevice':'removeDevice',error:''});
+    const clear=()=>{cleared=true;this.clearDeviceLocal(device);};
+    try{
+      await this.stopScan();
+      if(reset)await this.invoke('resetDevice',{beforeReset:clear});
+      else clear();
+    }finally{
+      try{if(cleared)await this.disconnect();}
+      finally{this.removing=false;this.update({actionName:'',feedback:''});}
+    }
+  }
 
   async invoke(name,args){
     if(this.state.busy||this.connecting)throw new Error('Wait for the current device action.');

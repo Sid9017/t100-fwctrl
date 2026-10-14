@@ -11,3 +11,5 @@ export {WechatGattAdapter} from './gatt.js';
 
 export {WeightUnitPreference} from './unit-preference.js';
 export {AutoConnect} from './auto-connect.js';
+
+export {PlanSync} from './plan-sync.js';

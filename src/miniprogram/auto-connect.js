@@ -14,7 +14,7 @@ export class AutoConnect {
   pump(){
     if(this.disposed||!this.foreground||!this.available||this.running)return;
     const s=this.service.state,target=this.target();
-    if(!target||s.connected||s.connecting||s.busy||s.actionName){this.cancel();return;}
+    if(!target||s.connected||s.connecting||s.busy||s.adding||s.actionName){this.cancel();return;}
     const nearby=(s.devices||[]).find(row=>!row.cached&&row.name.toLowerCase()===target.name.toLowerCase());
     if(Date.now()<(this.nextAttempt||0)){this.schedule();return;}
     if(nearby){

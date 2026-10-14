@@ -40,3 +40,7 @@ test('an unexpected disconnect resumes discovery but removing the saved device s
  f.service.update({connected:false,devices:[]});await tick();assert.deepEqual(f.calls,['scan']);
  f.auto.hide();f.service.update({knownDevices:[],devices:[{id:'near',name:'YD-03148c52fb00'}]});f.auto.show();await tick();assert.equal(f.calls.includes('near'),false);f.auto.dispose();
 });
+test('automatic reconnection waits until explicit binding and emotion setup releases ownership',async()=>{
+ const f=fixture();f.service.update({adding:true});f.auto.show();await tick();assert.deepEqual(f.calls,[]);
+ f.service.update({adding:false});await tick();assert.deepEqual(f.calls,['scan']);f.auto.dispose();
+});

@@ -1,6 +1,6 @@
 const KEY='kcalack.t100.devices.v1';
 const valid=row=>row&&typeof row.id==='string'&&row.id.length>0&&row.id.length<=256&&typeof row.name==='string'&&/^YD-[0-9a-f]{12}$/i.test(row.name)&&Number.isFinite(row.lastConnectedAt)&&row.lastConnectedAt>0&&row.lastConnectedAt<=8640000000000000;
-const firmwareOf=row=>typeof row?.firmware==='string'&&row.firmware.length<=80&&row.firmware!=='--'?{firmware:row.firmware}:{};
+const firmwareOf=row=>typeof row?.firmware==='string'&&row.firmware.trim().length>0&&row.firmware.length<=80&&!['--','unknown'].includes(row.firmware.toLowerCase())?{firmware:row.firmware}:{};
 const weighing=s=>s&&[0,1,2,3].includes(s.profile)&&[0,1].includes(s.unit)&&Number.isFinite(s.updatedAt)?{profile:s.profile,unit:s.unit,stage:[0,1,2].includes(s.stage)?s.stage:0,valueText:typeof s.valueText==='string'?s.valueText.slice(0,24):'--',unitText:s.unit===1?'oz':'g',updatedAt:s.updatedAt}:null;
 /** Connection history belongs to this Mini Program's local storage. */
 export class KnownDeviceStore {
@@ -25,5 +25,10 @@ export class KnownDeviceStore {
     this.api.setStorageSync(KEY,{version:1,devices:next});this.devices=next;return this.list();
   }
   remove(){this.api.setStorageSync(KEY,{version:1,devices:[]});this.devices=[];return this.list();}
+  saveFirmware(device,firmware){
+    const saved=this.devices[0],value=firmwareOf({firmware});
+    if(!saved||saved.name.toLowerCase()!==device?.name?.toLowerCase()||!value.firmware||saved.firmware===value.firmware)return this.list();
+    const next=[{...saved,...value}];this.api.setStorageSync(KEY,{version:1,devices:next});this.devices=next;return this.list();
+  }
   saveWeighing(snapshot){const lastWeighing=weighing(snapshot);if(!lastWeighing||!this.devices.length)return this.list();const next=[{...this.devices[0],lastWeighing}];this.api.setStorageSync(KEY,{version:1,devices:next});this.devices=next;return this.list();}
 }

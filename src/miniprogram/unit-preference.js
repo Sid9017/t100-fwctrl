@@ -21,7 +21,7 @@ export class WeightUnitPreference {
   queue(){if(this.queued||this.disposed)return;this.queued=true;Promise.resolve().then(()=>{this.queued=false;return this.sync();});}
   async sync(){
     const s=this.service?.state;
-    if(this.disposed||this.inflight||!this.state.pending||!s?.connected||s.connecting||s.busy||s.actionName||!s.hasAuth||!(s.status?.flags&1))return;
+    if(this.disposed||this.inflight||!this.state.pending||!s?.connected||s.connecting||s.busy||s.adding||s.planSyncing||s.actionName||!s.hasAuth||!(s.status?.flags&1))return;
     const unit=this.state.unit,epoch=this.epoch,key=`${epoch}:${unit}`;
     if(this.attempt===key)return;this.attempt=key;this.inflight=true;this.update({syncing:true});
     try{

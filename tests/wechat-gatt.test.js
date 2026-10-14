@@ -227,3 +227,18 @@ test('native controls reuse authenticated web wire payloads, confirm UUID echoes
 test('firmware mode reports update cached weighing state without sending a mode command',async()=>{
  const m=mock(),service=new MiniService(m.api);service.devices.set(device.id,device);await service.connect(device.id);const before=m.calls.filter(c=>c.name==='write').length;service.publish('status',{flags:1,coffee:{profile:2}});assert.equal(viewModel(service.state).profile,2);assert.equal(m.calls.filter(c=>c.name==='write').length,before);await service.disconnect();const saved=new KnownDeviceStore(m.api);assert.equal(saved.list()[0].lastWeighing.profile,2);assert.equal(viewModel(service.state).profile,2);await service.adapter.dispose();
 });
+test('last firmware survives disconnect and restart, including refreshed and OAD-read versions',async()=>{
+  const m=mock(),service=new MiniService(m.api);await service.scan();await service.connect(device.id);
+  assert.equal(service.state.knownDevices[0].firmware,'1.0.0-1234');
+  m.values.set('2a26',Buffer.from('1.0.0-ea98'));await service.refresh();
+  assert.equal(service.state.knownDevices[0].firmware,'1.0.0-ea98');
+  service.actions.emit('ScanUpsert',[{id:device.id,firmware:'1.0.0-abcd'}]);
+  for(const fn of m.events.connection)fn({deviceId:device.id,connected:false});
+  assert.equal(viewModel(service.state).knownDeviceRows[0].firmware,'1.0.0-abcd');
+  const saved=new KnownDeviceStore(m.api);assert.equal(saved.list()[0].firmware,'1.0.0-abcd');
+  saved.remember({...device,firmware:'--'});assert.equal(saved.list()[0].firmware,'1.0.0-abcd');
+  saved.saveFirmware(device,'');saved.saveFirmware({...device,name:'YD-031122334455'},'1.0.0-ffff');
+  assert.equal(saved.list()[0].firmware,'1.0.0-abcd');
+  saved.remove();saved.saveFirmware(device,'1.0.0-abcd');assert.deepEqual(new KnownDeviceStore(m.api).list(),[]);
+  await service.adapter.dispose();
+});
