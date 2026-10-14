@@ -29,7 +29,7 @@ export function validateMeal(input){
   if(!MEALS.includes(input.meal))throw new Error('Select a meal');
   const date=new Date(`${input.date}T${input.time}:00`);if(!Number.isFinite(date.getTime())||dayKey(date)!==input.date||!/^\d{2}:\d{2}$/.test(input.time))throw new Error('Invalid date or time');
   const weight=String(input.weight??'').trim()?num(input.weight,'Weight',0,99999):null;
-  const photos=input.photos||[];if(!Array.isArray(photos)||photos.length>3||photos.some(p=>typeof p!=='string'||!p))throw new Error('Choose up to three photos');
+  const photos=input.photos||[];if(!Array.isArray(photos)||photos.length>5||photos.some(p=>typeof p!=='string'||!p))throw new Error('Choose up to five photos');
   const macros={};for(const key of ['carbs','protein','fat','fiber'])macros[key]=String(input[key]??'').trim()?num(input[key],key,0,9999):null;
   return {...input,name,weight,kcal:num(input.kcal,'Calories',0,99999,true),rating:num(input.rating,'Rating',1,5,true),...macros,photos:[...photos],timestampUtc:Math.floor(date.getTime()/1000),notes:String(input.notes||'').slice(0,400),updatedAt:Date.now()};
 }

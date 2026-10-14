@@ -1,0 +1,203 @@
+<Rive version="1" kind="fragment">
+  <Artboard width="500" height="500" name="Meal sky" id="0:2" styleId="0:5" defaultStateMachineId="0:7">
+    <LayoutComponentStyle id="0:5" />
+    <Node name="Camera button" id="0:21">
+      <Shape name="Camera lens" id="0:22" x="250" y="253">
+        <Ellipse width="17" height="17" />
+        <Stroke thickness="4.9">
+          <SolidColor colorValue="FFFFFFFF" />
+        </Stroke>
+      </Shape>
+      <Shape name="Camera outline" id="0:23">
+        <PointsPath isClosed="true">
+          <StraightVertex x="228" y="236" radius="3" />
+          <StraightVertex x="236" y="236" radius="3" />
+          <StraightVertex x="241" y="228" radius="3" />
+          <StraightVertex x="259" y="228" radius="3" />
+          <StraightVertex x="264" y="236" radius="3" />
+          <StraightVertex x="272" y="236" radius="3" />
+          <StraightVertex x="275" y="240" radius="3" />
+          <StraightVertex x="275" y="269" radius="3" />
+          <StraightVertex x="272" y="272" radius="3" />
+          <StraightVertex x="228" y="272" radius="3" />
+          <StraightVertex x="225" y="269" radius="3" />
+          <StraightVertex x="225" y="240" radius="3" />
+        </PointsPath>
+        <Stroke thickness="4.9" cap="round" join="round">
+          <SolidColor colorValue="FFFFFFFF" />
+        </Stroke>
+      </Shape>
+      <Shape name="Camera surface" id="0:24" x="250" y="250">
+        <Ellipse width="152" height="152" />
+        <Fill>
+          <SolidColor colorValue="FF353535" />
+        </Fill>
+      </Shape>
+    </Node>
+    <Node name="Landscape" id="0:25">
+      <ClippingShape sourceId="0:26" />
+      <Shape name="Mist" id="0:27" x="250" y="320">
+        <Ellipse width="700" height="180" />
+        <Fill>
+          <RadialGradient startX="0" startY="0" endX="300" endY="0">
+            <GradientStop position="0" colorValue="B0DAF0E5" />
+            <GradientStop position=".55" colorValue="50DAF0E5" />
+            <GradientStop position="1" colorValue="00DAF0E5" />
+          </RadialGradient>
+        </Fill>
+      </Shape>
+      <Shape name="Large hill" id="0:28" x="350" y="490">
+        <Ellipse width="730" height="438" />
+        <Fill>
+          <LinearGradient startX="0" startY="-219" endX="0" endY="50">
+            <GradientStop id="0:29" position="0" colorValue="FFCFEE88" />
+            <GradientStop id="0:30" position="1" colorValue="FF5FA991" />
+          </LinearGradient>
+        </Fill>
+      </Shape>
+      <Shape name="Small hill" id="0:31" x="75" y="382">
+        <Ellipse width="450" height="270" />
+        <Fill>
+          <LinearGradient startX="0" startY="-135" endX="0" endY="70">
+            <GradientStop id="0:32" position="0" colorValue="FFD5EF8C" />
+            <GradientStop id="0:33" position="1" colorValue="FF78AF70" />
+          </LinearGradient>
+        </Fill>
+      </Shape>
+      <Node name="Sun" id="0:34" x="95" y="270">
+        <Shape name="Sun glow" id="0:35" x="0" y="0">
+          <Ellipse width="78" height="78" />
+          <Fill>
+            <SolidColor colorValue="FFFFFCE5" />
+          </Fill>
+        </Shape>
+        <Shape name="Sun glow" id="0:36" x="0" y="0">
+          <Ellipse width="108" height="108" />
+          <Fill>
+            <SolidColor colorValue="40FFFCE5" />
+          </Fill>
+        </Shape>
+        <Shape name="Sun glow" id="0:37" x="0" y="0">
+          <Ellipse width="142" height="142" />
+          <Fill>
+            <SolidColor colorValue="20FFFCE5" />
+          </Fill>
+        </Shape>
+      </Node>
+      <Shape name="Sky" id="0:38" x="250" y="250">
+        <Ellipse width="500" height="500" />
+        <Fill>
+          <LinearGradient startX="0" startY="-250" endX="0" endY="250">
+            <GradientStop id="0:39" position="0" colorValue="FF9DE6ED" />
+            <GradientStop id="0:40" position="1" colorValue="FFF5FFAF" />
+          </LinearGradient>
+        </Fill>
+      </Shape>
+    </Node>
+    <Shape name="Circle clip" id="0:26" x="250" y="250">
+      <Ellipse width="500" height="500" />
+    </Shape>
+    <StateMachine name="Daylight" id="0:7">
+      <StateMachineLayer name="Sky" id="0:8">
+        <AnyState />
+        <ExitState />
+        <EntryState>
+          <StateTransition stateToId="0:12" />
+        </EntryState>
+        <AnimationState animationId="0:6" id="0:12" />
+      </StateMachineLayer>
+    </StateMachine>
+    <LinearAnimation duration="240" fps="60" loopValue="oneShot" name="Daylight" id="0:6">
+      <KeyedObject objectId="0:27">
+        <KeyedProperty property="opacity">
+          <KeyFrameDouble frame="0" value="0" interpolationType="linear" />
+          <KeyFrameDouble frame="60" value="0" interpolationType="linear" />
+          <KeyFrameDouble frame="120" value="0" interpolationType="linear" />
+          <KeyFrameDouble frame="180" value="0.6" interpolationType="linear" />
+          <KeyFrameDouble frame="240" value="0" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:29">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FFCFEE88" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FFB5ED8A" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FFD4DD83" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FFADD4C6" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FFCFEE88" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:30">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FF5FA991" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FF45B79F" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FF829A5C" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FF396D91" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FF5FA991" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:32">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FFD5EF8C" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FFBCEB81" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FFDDD77B" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FF8CC4BD" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FFD5EF8C" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:33">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FF78AF70" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FF63BA86" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FF9C9C63" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FF456C94" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FF78AF70" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:34">
+        <KeyedProperty property="x">
+          <KeyFrameDouble frame="0" value="95" interpolationType="linear" />
+          <KeyFrameDouble frame="60" value="250" interpolationType="linear" />
+          <KeyFrameDouble frame="120" value="405" interpolationType="linear" />
+          <KeyFrameDouble frame="180" value="405" interpolationType="linear" />
+          <KeyFrameDouble frame="240" value="95" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:34">
+        <KeyedProperty property="y">
+          <KeyFrameDouble frame="0" value="270" interpolationType="linear" />
+          <KeyFrameDouble frame="60" value="95" interpolationType="linear" />
+          <KeyFrameDouble frame="120" value="270" interpolationType="linear" />
+          <KeyFrameDouble frame="180" value="300" interpolationType="linear" />
+          <KeyFrameDouble frame="240" value="270" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:34">
+        <KeyedProperty property="opacity">
+          <KeyFrameDouble frame="0" value="1" interpolationType="linear" />
+          <KeyFrameDouble frame="60" value="1" interpolationType="linear" />
+          <KeyFrameDouble frame="120" value="1" interpolationType="linear" />
+          <KeyFrameDouble frame="180" value="0" interpolationType="linear" />
+          <KeyFrameDouble frame="240" value="1" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:39">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FF9DE6ED" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FF8ADDEA" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FFF589B1" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FF3989AA" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FF9DE6ED" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+      <KeyedObject objectId="0:40">
+        <KeyedProperty property="colorValue">
+          <KeyFrameColor frame="0" value="FFF5FFAF" interpolationType="linear" />
+          <KeyFrameColor frame="60" value="FFC9F6EA" interpolationType="linear" />
+          <KeyFrameColor frame="120" value="FFFFF4AB" interpolationType="linear" />
+          <KeyFrameColor frame="180" value="FFD5E9DB" interpolationType="linear" />
+          <KeyFrameColor frame="240" value="FFF5FFAF" interpolationType="linear" />
+        </KeyedProperty>
+      </KeyedObject>
+    </LinearAnimation>
+  </Artboard>
+</Rive>

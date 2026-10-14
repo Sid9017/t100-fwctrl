@@ -1,0 +1,1 @@
+<canvas type="2d" id="sky" class="sky" bindtouchstart="captureStart" bindtouchmove="captureMove" bindtouchend="captureEnd" bindtouchcancel="captureCancel" aria-hidden="true"/>

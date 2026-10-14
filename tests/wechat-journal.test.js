@@ -19,7 +19,7 @@ test('journal saves and updates one UUID without duplicate meals and survives re
  const f=fixture();f.store.saveProfile(profile);f.store.saveMeal(meal());f.store.saveMeal(meal({kcal:700}));assert.equal(f.store.summary().consumed,700);assert.equal(f.store.data.records.length,1);const restarted=new JournalStore(f.api);assert.equal(restarted.summary().consumed,700);assert.equal(restarted.summary().target,1800);assert.ok(f.cache.has(JOURNAL_KEY));
 });
 test('invalid records and rejected storage writes do not change the saved journal',()=>{
- const f=fixture();f.store.saveMeal(meal());const original=f.cache.get(JOURNAL_KEY);for(const patch of [{kcal:'NaN'},{rating:6},{date:'2026-02-30'},{time:'99:00'},{name:''},{photos:['a','b','c','d']}])assert.throws(()=>f.store.saveMeal(meal(patch)));assert.equal(f.cache.get(JOURNAL_KEY),original);
+ const f=fixture();f.store.saveMeal(meal());const original=f.cache.get(JOURNAL_KEY);for(const patch of [{kcal:'NaN'},{rating:6},{date:'2026-02-30'},{time:'99:00'},{name:''},{photos:['a','b','c','d','e','f']}])assert.throws(()=>f.store.saveMeal(meal(patch)));assert.equal(f.cache.get(JOURNAL_KEY),original);
  f.api.setStorageSync=()=>{throw new Error('Storage full');};assert.throws(()=>f.store.saveMeal(meal({kcal:1})),/Storage full/);assert.equal(f.store.summary().consumed,620);
 });
 test('nutrition remains partial when unknown, threshold follows target/TDEE and missing days are excluded',()=>{

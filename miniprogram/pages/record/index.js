@@ -1,20 +1,98 @@
 const {dayKey,MEALS,randomUuid,wxCall}=require('../../lib/t100');
 const {isPreview,store,errorText,route}=require('../../utils/page');
 const {ensurePlan,currentTheme}=require('../../utils/page');
+const photoSlots=photos=>Array.from({length:5},(_,index)=>({index,path:photos[index]||''}));
+const clockFields=()=>{const now=new Date();return {date:dayKey(now),time:`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`};};
 Page({
-  data:{themeProfile:3,showNutrition:false,today:dayKey(),preview:false,editing:false,saved:false,canSync:false,meals:MEALS,mealIndex:0,ratingDots:[1,2,3,4,5],form:{id:'',name:'',meal:'Breakfast',date:dayKey(),time:'08:00',weight:'',kcal:'',carbs:'',protein:'',fat:'',fiber:'',notes:'',rating:4,photos:[],sync:{}},error:'',feedback:'',loading:false,summary:false},
-  async onLoad(options){this.preview=isPreview(options);if(!ensurePlan(this.preview)){this.blocked=true;return;}this.journal=store(this.preview);this.service=this.preview?getApp().getPreviewService():getApp().service;this.newPhotos=[];const old=this.journal.data.records.find(r=>r.id===options.id);const now=new Date(),time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;this.setData({preview:this.preview,editing:!!old,saved:!!old,summary:!!old,form:old?{...old,...Object.fromEntries(['carbs','protein','fat','fiber','weight'].map(k=>[k,old[k]??'']))}:{...this.data.form,date:dayKey(),weight:options.weight||'',time,meal:now.getHours()<11?'Breakfast':now.getHours()<16?'Lunch':now.getHours()<21?'Dinner':'Snack'}});this.setData({mealIndex:MEALS.indexOf(this.data.form.meal)});if(!old){try{const id=await randomUuid(wx);if(this.unloaded)return;this.setData({'form.id':id});}catch(e){this.setData({error:errorText(e)});}}this.unsubscribe=this.service?.onChange(s=>this.setData({themeProfile:currentTheme(s),canSync:s.connected&&!!(s.status?.flags&1)&&s.hasAuth&&!s.busy}));},
-  onUnload(){this.unloaded=true;this.unsubscribe?.();for(const path of this.newPhotos||[])if(!this.journal.data.records.some(r=>r.photos.includes(path)))wx.getFileSystemManager().unlink({filePath:path,fail:()=>{}});},
+  data:{themeProfile:3,visible:true,skyReady:false,orbitPaused:false,photoEditing:false,selectedPhotoIndex:-1,deletingPhotoIndex:-1,detailsOpen:false,photoSlots:photoSlots([]),today:dayKey(),preview:false,editing:false,saved:false,canSync:false,meals:MEALS,mealIndex:0,ratingDots:[1,2,3,4,5],form:{id:'',name:'',meal:'Breakfast',date:dayKey(),time:'08:00',weight:'',kcal:'',carbs:'',protein:'',fat:'',fiber:'',notes:'',rating:4,photos:[],sync:{}},error:'',feedback:'',loading:false,summary:false},
+  async onLoad(options={}){this.preview=isPreview(options);if(!ensurePlan(this.preview)){this.blocked=true;return;}this.journal=store(this.preview);this.service=this.preview?getApp().getPreviewService():getApp().service;this.newPhotos=[];const old=this.journal.data.records.find(r=>r.id===options.id);const now=new Date(),time=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;this.setData({preview:this.preview,editing:!!old,saved:!!old,summary:!!old,form:old?{...old,...Object.fromEntries(['carbs','protein','fat','fiber','weight'].map(k=>[k,old[k]??'']))}:{...this.data.form,date:dayKey(),weight:options.weight||'',time,meal:now.getHours()<11?'Breakfast':now.getHours()<16?'Lunch':now.getHours()<21?'Dinner':'Snack'}});this.setData({mealIndex:MEALS.indexOf(this.data.form.meal),photoSlots:photoSlots(this.data.form.photos),selectedPhotoIndex:this.data.form.photos.length?0:-1,detailsOpen:!!old});if(!old){try{const id=await randomUuid(wx);if(this.unloaded)return;this.setData({'form.id':id});}catch(e){this.setData({error:errorText(e)});}}this.unsubscribe=this.service?.onChange(s=>this.setData({themeProfile:currentTheme(s),canSync:s.connected&&!!(s.status?.flags&1)&&s.hasAuth&&!s.busy}));},
+  onShow(){this.setData({visible:true});},onHide(){this.skyGesture=null;this.setData({visible:false});},
+  cleanupPhotos(paths){if(this.preview)return;for(const path of paths)if(path.startsWith(wx.env.USER_DATA_PATH+'/kcalack-photo-')&&!this.journal.data.records.some(r=>r.photos.includes(path)))wx.getFileSystemManager().unlink({filePath:path,fail:()=>{}});},
+  onUnload(){this.unloaded=true;this.skyGesture=null;clearTimeout(this.orbitTimer);clearTimeout(this.photoDeleteTimer);this.unsubscribe?.();this.cleanupPhotos(this.newPhotos||[]);},
+  pauseOrbit(){clearTimeout(this.orbitTimer);this.setData({orbitPaused:true});},
+  resumeOrbit(){clearTimeout(this.orbitTimer);this.orbitTimer=setTimeout(()=>{if(!this.unloaded)this.setData({orbitPaused:false});},400);},
+  toggleDetails(){this.setData({detailsOpen:!this.data.detailsOpen});},
+  selectMeal(e){const meal=e.currentTarget.dataset.meal;if(MEALS.includes(meal))this.setData({'form.meal':meal,mealIndex:MEALS.indexOf(meal),saved:false});},
+  skyLoaded(){this.setData({skyReady:true});},
+  skyUnavailable(){this.setData({skyReady:false});},
+  skyTouchStart(e){
+    this.skyGesture=null;
+    this.setData({photoEditing:false});
+    if(e.touches?.length!==1)return;
+    const gesture=this.skyGesture={points:[e.touches[0]],ended:false};
+    this.pauseOrbit();
+    this.createSelectorQuery().select('.photo-wheel').boundingClientRect(box=>{
+      if(this.skyGesture!==gesture||!box)return;
+      gesture.center={x:box.left+box.width/2,y:box.top+box.height/2};
+      if(gesture.ended)this.finishSkyGesture();
+    }).exec();
+  },
+  skyTouchMove(e){
+    if(e.touches?.length!==1){this.skyTouchCancel();return;}
+    if(this.skyGesture)this.skyGesture.points.push(e.touches[0]);
+  },
+  skyTouchEnd(e){
+    if(!this.skyGesture)return;
+    if(e.changedTouches?.[0])this.skyGesture.points.push(e.changedTouches[0]);
+    this.skyGesture.ended=true;this.resumeOrbit();this.finishSkyGesture();
+  },
+  finishSkyGesture(){
+    const gesture=this.skyGesture;
+    if(!gesture?.center||!gesture.ended)return;
+    this.skyGesture=null;
+    let angle=0,previous=null;
+    for(const point of gesture.points){
+      const x=point.clientX-gesture.center.x,y=point.clientY-gesture.center.y;
+      // Crossing the camera's central dead zone is not a wheel rotation.
+      if(Math.hypot(x,y)<36)return;
+      const current=Math.atan2(y,x);
+      if(previous!==null){let delta=current-previous;if(delta>Math.PI)delta-=Math.PI*2;if(delta< -Math.PI)delta+=Math.PI*2;angle+=delta;}
+      previous=current;
+    }
+    if(Math.abs(angle)<Math.PI/8)return;
+    const index=(this.data.mealIndex+(angle>0?1:-1)+4)%4;
+    this.selectMeal({currentTarget:{dataset:{meal:MEALS[index]}}});
+  },
+  skyTouchCancel(){this.skyGesture=null;this.resumeOrbit();},
   field(e){this.setData({['form.'+e.currentTarget.dataset.field]:e.detail.value,saved:false,error:''});},
-  meal(e){this.setData({mealIndex:Number(e.detail.value),'form.meal':MEALS[Number(e.detail.value)],saved:false});},date(e){this.setData({'form.date':e.detail.value,saved:false});},time(e){this.setData({'form.time':e.detail.value,saved:false});},rating(e){this.setData({'form.rating':Number(e.currentTarget.dataset.value),saved:false});},
-  ratingStart(e){this.createSelectorQuery().select('#meal-rating').boundingClientRect(rect=>{this.ratingRect=rect;this.ratingMove(e);}).exec();},
-  ratingMove(e){const x=e.touches?.[0]?.clientX;if(this.ratingRect&&Number.isFinite(x))this.setData({'form.rating':Math.max(1,Math.min(5,Math.floor((x-this.ratingRect.left)/this.ratingRect.width*5)+1)),saved:false});},
-  async choosePhoto(){if(this.data.loading||this.data.form.photos.length>=3)return;this.setData({loading:true,error:''});try{const result=await wxCall(wx,'chooseMedia',{count:3-this.data.form.photos.length,mediaType:['image'],sourceType:['camera','album'],sizeType:['compressed']});const paths=[];for(const file of result.tempFiles){if(this.preview){paths.push(file.tempFilePath);continue;}const id=await randomUuid(wx),path=wx.env.USER_DATA_PATH+'/kcalack-photo-'+id+'.jpg';await wxCall(wx.getFileSystemManager(),'saveFile',{tempFilePath:file.tempFilePath,filePath:path});this.newPhotos.push(path);paths.push(path);}this.setData({'form.photos':[...this.data.form.photos,...paths],saved:false});}catch(e){if(!/cancel/i.test(e.errMsg||e.message||''))this.setData({error:errorText(e)});}finally{this.setData({loading:false});}},
-  removePhoto(e){this.setData({'form.photos':this.data.form.photos.filter((_,i)=>i!==Number(e.currentTarget.dataset.index)),saved:false});},
-  previewPhoto(e){wx.previewImage({current:e.currentTarget.dataset.path,urls:this.data.form.photos});},
-  async save(){if(this.data.loading)return;this.setData({loading:true,error:'',feedback:''});try{const record=this.journal.saveMeal({...this.data.form,sync:Object.fromEntries(Object.keys(this.data.form.sync||{}).map(id=>[id,'pending']))});this.setData({saved:true,editing:true,summary:true,form:{...this.data.form,...record},feedback:'Meal saved on this phone.'});}catch(e){this.setData({error:errorText(e)});}finally{this.setData({loading:false});}},
-  toggleNutrition(){this.setData({showNutrition:!this.data.showNutrition});},
-  edit(){this.setData({summary:false});},done(){if(getCurrentPages().length>1)wx.navigateBack();else wx.reLaunch({url:'/pages/index/index'});},
-  async sync(){if(this.data.loading||!this.data.saved)return;this.setData({loading:true,error:'',feedback:''});try{const s=this.service?.state;if(!s?.connected||!(s.status?.flags&1)||!s.hasAuth)throw new Error('Connect a bound device with saved auth first.');for(const deletion of this.journal.data.deletions||[])if(deletion.deviceId===s.device.id){await this.service.invoke('deleteKcalHist',{uuid:deletion.id});this.journal.clearDeletion(deletion.id,s.device.id);}await this.service.appendHistory({uuid:this.data.form.id,timestampUtc:this.data.form.timestampUtc,kcal:this.data.form.kcal,rating:this.data.form.rating,foodFiles:this.data.form.photos});this.journal.markSync(this.data.form.id,s.device.id,'sent');this.setData({feedback:this.preview?'Preview only · nothing was sent.':'Record sent to your device.'});}catch(e){this.setData({error:'Saved locally. '+errorText(e)});}finally{this.setData({loading:false});}},
-  async remove(){if(this.data.loading)return;const answer=await wxCall(wx,'showModal',{title:'Delete this meal?',content:'Remove it from your journal. A device copy will be removed when synced to that device.',confirmText:'Delete',confirmColor:'#ad3c32'});if(!answer.confirm)return;this.setData({loading:true,error:''});try{this.journal.removeMeal(this.data.form.id);this.done();}catch(e){this.setData({error:errorText(e)});}finally{this.setData({loading:false});}}
+  rating(e){this.setData({'form.rating':Number(e.currentTarget.dataset.value),saved:false});},
+  async choosePhoto(){
+    if(this.data.loading||this.data.deletingPhotoIndex>=0||this.data.form.photos.length>=5)return;
+    this.setData({loading:true,error:''});const paths=[];
+    try{
+      const result=await wxCall(wx,'chooseMedia',{count:1,mediaType:['image'],sourceType:['camera','album'],sizeType:['compressed']},120000);
+      if(this.unloaded)return;
+      for(const file of result.tempFiles.slice(0,5-this.data.form.photos.length)){
+        if(this.preview){paths.push(file.tempFilePath);continue;}
+        const id=await randomUuid(wx),path=wx.env.USER_DATA_PATH+'/kcalack-photo-'+id+'.jpg';
+        await wxCall(wx.getFileSystemManager(),'saveFile',{tempFilePath:file.tempFilePath,filePath:path});this.newPhotos.push(path);paths.push(path);
+        if(this.unloaded){this.cleanupPhotos(paths);return;}
+      }
+      if(paths.length){const photos=[...this.data.form.photos,...paths];this.setData({'form.photos':photos,photoSlots:photoSlots(photos),selectedPhotoIndex:photos.length-1,photoEditing:true,detailsOpen:true,saved:false});}
+    }catch(e){this.cleanupPhotos(paths);if(!this.unloaded&&!/cancel/i.test(e.errMsg||e.message||''))this.setData({error:errorText(e)});}
+    finally{if(!this.unloaded)this.setData({loading:false});}
+  },
+  editPhoto(){this.setData({photoEditing:true});this.pauseOrbit();},
+  selectPhoto(e){
+    const index=Number(e.currentTarget.dataset.index);
+    if(this.data.deletingPhotoIndex>=0||!this.data.form.photos[index])return;
+    this.skyGesture=null;this.setData({selectedPhotoIndex:index,photoEditing:true,detailsOpen:true});this.pauseOrbit();
+  },
+  removePhoto(e){
+    const index=Number(e.currentTarget.dataset.index);
+    if(this.data.loading||this.data.deletingPhotoIndex>=0||!this.data.form.photos[index])return;
+    this.skyGesture=null;this.setData({deletingPhotoIndex:index,photoEditing:true});
+    this.photoDeleteTimer=setTimeout(()=>{
+      if(this.unloaded)return;
+      const photos=this.data.form.photos.filter((_,i)=>i!==index),previous=this.data.selectedPhotoIndex;
+      const selected=photos.length?Math.min(previous>index?previous-1:Math.max(0,previous),photos.length-1):-1;
+      this.setData({'form.photos':photos,photoSlots:photoSlots(photos),selectedPhotoIndex:selected,deletingPhotoIndex:-1,photoEditing:photos.length>0,saved:false});
+      if(!photos.length)this.resumeOrbit();
+    },220);
+  },
+  previewPhoto(e){this.pauseOrbit();wx.previewImage({current:e.currentTarget.dataset.path,urls:this.data.form.photos,complete:()=>this.resumeOrbit()});},
+  async save(){if(this.data.loading||this.data.deletingPhotoIndex>=0)return;this.setData({loading:true,error:'',feedback:''});try{const previous=this.journal.data.records.find(r=>r.id===this.data.form.id);const record=this.journal.saveMeal({...this.data.form,...(!previous?clockFields():{}),sync:Object.fromEntries(Object.keys(this.data.form.sync||{}).map(id=>[id,'pending']))});this.setData({saved:true,editing:true,summary:true,form:{...this.data.form,...record},feedback:''});this.cleanupPhotos([...(previous?.photos||[]),...this.newPhotos]);}catch(e){this.setData({detailsOpen:true,error:errorText(e)});}finally{this.setData({loading:false});}},
+  edit(){this.setData({summary:false,detailsOpen:true,skyReady:false,photoEditing:this.data.form.photos.length>0});},done(){if(getCurrentPages().length>1)wx.navigateBack();else wx.reLaunch({url:'/pages/index/index'});},
+  async sync(){if(this.data.loading||!this.data.saved)return;this.setData({loading:true,error:'',feedback:''});try{const s=this.service?.state;if(!s?.connected||!(s.status?.flags&1)||!s.hasAuth)throw new Error('Connect a bound device with saved auth first.');for(const deletion of this.journal.data.deletions||[])if(deletion.deviceId===s.device.id){await this.service.invoke('deleteKcalHist',{uuid:deletion.id});this.journal.clearDeletion(deletion.id,s.device.id);}await this.service.appendHistory({uuid:this.data.form.id,timestampUtc:this.data.form.timestampUtc,kcal:this.data.form.kcal,rating:this.data.form.rating,foodFiles:this.data.form.photos.slice(0,3)});this.journal.markSync(this.data.form.id,s.device.id,'sent');this.setData({feedback:this.preview?'Preview only · nothing was sent.':'Record sent to your device.'});}catch(e){this.setData({error:'Saved locally. '+errorText(e)});}finally{this.setData({loading:false});}},
+  async remove(){if(this.data.loading)return;const answer=await wxCall(wx,'showModal',{title:'Delete this meal?',content:'Remove it from your journal. A device copy will be removed when synced to that device.',confirmText:'Delete',confirmColor:'#ad3c32'});if(!answer.confirm)return;this.setData({loading:true,error:''});try{const photos=this.data.form.photos;this.journal.removeMeal(this.data.form.id);this.cleanupPhotos(photos);this.done();}catch(e){this.setData({error:errorText(e)});}finally{this.setData({loading:false});}}
 });

@@ -2,6 +2,10 @@
   "navigationBarTitleText": "KCALACK",
   "disableScroll": true,
   "usingComponents": {
-    "scroll-surface": "/components/scroll-surface/index"
+    "scroll-surface": "/components/scroll-surface/index",
+    "meal-sky": "/pairing/meal-sky/index"
+  },
+  "componentPlaceholder": {
+    "meal-sky": "view"
   }
 }

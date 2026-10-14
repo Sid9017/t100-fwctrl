@@ -16,8 +16,12 @@ await cp(new URL('../assets/food/',import.meta.url),new URL('../miniprogram/asse
 
 await writeModeImages(new URL('../',import.meta.url));
 
-// The Rive engine lives in its own subpackage and is only loaded after pairing.
+// The Rive engine lives in its own subpackage and is loaded by the paired device and meal landscape components.
 await mkdir(new URL('../miniprogram/pairing/assets/',import.meta.url),{recursive:true});
 const pairing=await readFile(new URL('../assets/pairing/kcalack-pairing.riv',import.meta.url));
 await writeFile(new URL('../miniprogram/pairing/assets/animation.js',import.meta.url),
   '// Generated from assets/pairing/kcalack-pairing.riv.\nmodule.exports='+JSON.stringify(pairing.toString('base64'))+';\n');
+
+const mealSky=await readFile(new URL('../assets/meal-sky/kcalack-meal-sky.riv',import.meta.url));
+await writeFile(new URL('../miniprogram/pairing/assets/meal-sky.js',import.meta.url),
+  '// Generated from assets/meal-sky/kcalack-meal-sky.riv.\nmodule.exports='+JSON.stringify(mealSky.toString('base64'))+';\n');

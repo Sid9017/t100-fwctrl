@@ -250,6 +250,7 @@ class RiveInstance {
     this._artboard.draw(r);
     r.restore();
     rive.resolveAnimationFrame();
+    this._opts.afterDraw?.(this._canvas);
     if (this._playing && dt > 0) this._opts.onFrame?.(dt);
   }
 
@@ -293,6 +294,15 @@ class RiveInstance {
     this._playing = false;
     this._stop();
     if (this._anim) { this._anim.time = 0; this._anim.apply(1.0); this._artboard.advance(0); }
+    this._drawOnce();
+  }
+
+  /** Render a linear animation at an absolute time without starting playback. */
+  seek(seconds) {
+    if (!this._anim || !Number.isFinite(seconds)) return;
+    this._anim.time = Math.max(0, seconds);
+    this._anim.apply(1.0);
+    this._artboard.advance(0);
     this._drawOnce();
   }
 
