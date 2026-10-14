@@ -21,16 +21,12 @@ test('rapid retargets replace pending animation; hiding cancels frames and resum
  f.component.data.meal=2;f.definition.pageLifetimes.show.call(f.component);assert.equal(f.rendered.at(-1),2);assert.equal(f.frames.size,0);
 });
 
-test('canvas camera hit testing handles local touches and viewport tap coordinates',()=>{
- const {component}=setup();let captures=0;
- component.triggerEvent=name=>{assert.equal(name,'capture');captures++;};
- component.createSelectorQuery=()=>({select(){return this;},boundingClientRect(fn){fn({left:40,top:180,width:250,height:250});return this;},exec(){}});
- component.captureTap({changedTouches:[{x:125,y:125,clientX:165,clientY:305}]});
- component.captureTap({detail:{x:165,y:305}});assert.equal(captures,2);
- component.captureTap({changedTouches:[{x:10,y:10}]});component.captureTap({});assert.equal(captures,2);
- const point={x:125,y:125};
- component.captureStart({touches:[point]});component.captureEnd({changedTouches:[point]});assert.equal(captures,3);
- component.captureStart({touches:[point]});component.captureMove({touches:[{x:150,y:125}]});component.captureEnd({changedTouches:[point]});assert.equal(captures,3);
- component.captureStart({touches:[point]});component.captureCancel();component.captureEnd({changedTouches:[point]});assert.equal(captures,3);
- component.captureStart({touches:[point,point]});component.captureEnd({changedTouches:[point]});assert.equal(captures,3);
+test('Rive snapshots are throttled, final frames flush, and export errors fall back safely',()=>{
+ const f=setup(),c=f.component;let exports=0;const events=[];
+ c.data.frameSource='';c.setData=p=>Object.assign(c.data,p);c.triggerEvent=e=>events.push(e);
+ const canvas={toDataURL(){exports++;return 'data:image/png;base64,frame'+exports;}};
+ c.publishFrame(canvas);assert.equal(exports,1);c.publishFrame(canvas);assert.equal(exports,1);
+ f.advance(40);c.publishFrame(canvas);assert.equal(exports,2);
+ c.forceFrame=true;c.publishFrame(canvas);assert.equal(exports,3);
+ canvas.toDataURL=()=>{throw Error('unsupported');};c.publishFrame(canvas);assert.equal(c.data.frameSource,'');assert.deepEqual(events,['unavailable']);
 });

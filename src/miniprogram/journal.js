@@ -31,7 +31,7 @@ export function validateMeal(input){
   const weight=String(input.weight??'').trim()?num(input.weight,'Weight',0,99999):null;
   const photos=input.photos||[];if(!Array.isArray(photos)||photos.length>5||photos.some(p=>typeof p!=='string'||!p))throw new Error('Choose up to five photos');
   const macros={};for(const key of ['carbs','protein','fat','fiber'])macros[key]=String(input[key]??'').trim()?num(input[key],key,0,9999):null;
-  return {...input,name,weight,kcal:num(input.kcal,'Calories',0,99999,true),rating:num(input.rating,'Rating',1,5,true),...macros,photos:[...photos],timestampUtc:Math.floor(date.getTime()/1000),notes:String(input.notes||'').slice(0,400),updatedAt:Date.now()};
+  return {...input,name,weight,kcal:input.autoSaved&&input.kcal===null?null:num(input.kcal,'Calories',0,99999,true),rating:num(input.rating,'Rating',1,5,true),...macros,photos:[...photos],timestampUtc:Math.floor(date.getTime()/1000),notes:String(input.notes||'').slice(0,400),updatedAt:Date.now()};
 }
 export class JournalStore {
   constructor(api,{memory=false}={}){this.api=api;this.memory=memory;this.listeners=new Set();this.data={version:1,profile:null,plans:[],records:[],containers:[]};this.error='';if(!memory){try{const raw=api.getStorageSync(JOURNAL_KEY);if(raw){const data=typeof raw==='string'?JSON.parse(raw):raw;if(data.version!==1||!Array.isArray(data.records)||!Array.isArray(data.containers)||!Array.isArray(data.plans))throw new Error('Invalid journal');for(const r of data.records)validateMeal(r);for(const p of data.plans){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date))throw new Error('Invalid plan');estimatePlan(p.profile);}if(data.profile)estimatePlan(data.profile);this.data=data;}}catch{this.error='Your saved journal could not be read. It has not been overwritten.';}}}
@@ -48,13 +48,13 @@ export class JournalStore {
   removeContainer(id){this.commit({...this.data,containers:this.data.containers.filter(c=>c.id!==id)});}
   summary(date=dayKey()){
     const records=this.data.records.filter(r=>r.date===date),plan=this.planFor(date),target=plan?.target??null,tdee=plan?.tdee??null;
-    const consumed=records.reduce((sum,r)=>sum+r.kcal,0),remaining=target===null?null:target-consumed;
+    const calorieRecordCount=records.filter(r=>r.kcal!==null).length,consumed=records.reduce((sum,r)=>sum+(r.kcal??0),0),remaining=target===null?null:target-consumed;
     const nutrients=['carbs','protein','fat','fiber'].map((key,i)=>{const known=records.filter(r=>r[key]!==null&&r[key]!==undefined),total=known.reduce((s,r)=>s+r[key],0),p=plan?.profile,goal=p?key==='fiber'?p.fiber:Math.round(p.target*p[key]/100/(key==='fat'?9:4)):null;return {key,label:['Carbs','Protein','Fat','Fiber'][i],total:Math.round(total*10)/10,goal,partial:known.length!==records.length,progress:goal?Math.min(100,total/goal*100):0};});
-    return {date,records,consumed,target,tdee,remaining,progress:target?Math.min(100,consumed/target*100):0,tone:remaining===null||remaining>=0?'normal':consumed<=tdee?'warning':'danger',nutrients,recordCount:records.length};
+    return {date,records,consumed,target,tdee,remaining,progress:target?Math.min(100,consumed/target*100):0,tone:remaining===null||remaining>=0?'normal':consumed<=tdee?'warning':'danger',nutrients,calorieRecordCount,recordCount:records.length};
   }
 }
 export function weekSummary(store,end=dayKey()){
   const anchor=new Date(`${end}T12:00:00`),days=[];for(let i=6;i>=0;i--){const d=new Date(anchor);d.setDate(d.getDate()-i);const summary=store.summary(dayKey(d));days.push({...summary,label:['S','M','T','W','T','F','S'][d.getDay()],day:d.getDate()});}
-  const recorded=days.filter(d=>d.recordCount),maximum=Math.max(1,...days.map(d=>Math.max(d.consumed,d.target||0)))*1.15;
-  return {days:days.map(d=>({...d,height:d.recordCount?Math.max(2,d.consumed/maximum*100):0,targetHeight:d.target===null?null:d.target/maximum*100})),recordedDays:recorded.length,average:recorded.length?Math.round(recorded.reduce((s,d)=>s+d.consumed,0)/recorded.length):null,total:recorded.reduce((s,d)=>s+d.consumed,0)};
+  const recorded=days.filter(d=>d.calorieRecordCount),maximum=Math.max(1,...days.map(d=>Math.max(d.consumed,d.target||0)))*1.15;
+  return {days:days.map(d=>({...d,height:d.calorieRecordCount?Math.max(2,d.consumed/maximum*100):0,targetHeight:d.target===null?null:d.target/maximum*100})),recordedDays:recorded.length,average:recorded.length?Math.round(recorded.reduce((s,d)=>s+d.consumed,0)/recorded.length):null,total:recorded.reduce((s,d)=>s+d.consumed,0)};
 }

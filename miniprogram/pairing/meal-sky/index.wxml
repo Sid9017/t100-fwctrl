@@ -1,1 +1,2 @@
-<canvas type="2d" id="sky" class="sky" bindtouchstart="captureStart" bindtouchmove="captureMove" bindtouchend="captureEnd" bindtouchcancel="captureCancel" aria-hidden="true"/>
+<canvas type="2d" id="sky" class="render-surface" aria-hidden="true"/>
+<image wx:if="{{frameSource}}" class="sky" src="{{frameSource}}" aria-hidden="true"/>

@@ -45,3 +45,10 @@ test('barcode auto-connect waits for a fresh exact broadcast and attempts only o
  const names={target:'YD-03148c52fb00',other:'YD-02ffffffff00'},calls=[],service={state:{connected:false,scanning:true,battery:null,mtu:null,devices:[{id:'cached',name:names.target,cached:true},{id:'other',name:names.other,cached:false}]},onChange(fn){fn(this.state);return ()=>{};},stopScan:async()=>{},connect:async id=>calls.push(id)};
  const p=await controller(0,{service,isDevtools:false},{navigateTo:()=>{}});p.onLoad();p.visible=true;p.setData({showScanner:true,scanTarget:names.target});p.tryBarcodeConnect();assert.equal(calls.length,0);service.state.devices.push({id:'exact',name:names.target,cached:false});p.tryBarcodeConnect();await new Promise(r=>setImmediate(r));assert.deepEqual(calls,['exact']);p.tryBarcodeConnect();assert.equal(calls.length,1);
 });
+
+test('photo-only autosaved meals survive restart without counting as zero-calorie days',()=>{
+ const f=fixture();f.store.saveMeal(meal({autoSaved:true,kcal:null,photos:['/user/food.jpg']}));
+ const restored=new JournalStore(f.api);assert.equal(restored.error,'');assert.equal(restored.data.records[0].kcal,null);
+ assert.equal(weekSummary(restored).average,null);assert.equal(weekSummary(restored).recordedDays,0);
+ restored.saveMeal({...restored.data.records[0],kcal:0});assert.equal(weekSummary(restored).average,0);assert.equal(weekSummary(restored).recordedDays,1);
+});

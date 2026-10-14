@@ -32,7 +32,7 @@
 .details-content { padding-bottom:4rpx; }.description-input { width:100%; height:140rpx; padding:20rpx; border-radius:22rpx; background:#f7f7fa; color:#353535; font-size:28rpx; margin-bottom:24rpx; }.form-grid input { font-size:34rpx; }
 .summary-photos { display:flex; flex-wrap:wrap; gap:16rpx; margin-top:28rpx; }.summary-photo { width:calc((100% - 32rpx)/3); height:150rpx; border-radius:24rpx; }.meal-summary .big-number { font-size:80rpx; }
 .delete-meal { color:#aa4640!important; margin:24rpx auto; }
-.record-footer { position:fixed; left:0; right:0; bottom:0; z-index:20; padding:20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom)); background:#f9faf5; }.page-body { padding-bottom:calc(180rpx + env(safe-area-inset-bottom)); }
+.record-footer { position:fixed; left:0; right:0; bottom:0; z-index:20; padding:20rpx 40rpx calc(20rpx + env(safe-area-inset-bottom)); background:#f9faf5; }.page-body { padding-bottom:calc(32rpx + env(safe-area-inset-bottom)); }.page-body.has-footer { padding-bottom:calc(180rpx + env(safe-area-inset-bottom)); }
 @media(prefers-reduced-motion:reduce){.photo-orbit,.upright-photo { animation:none; }.details-reveal,.details-arrow { transition:none; }}
 
 .photo-orbit { pointer-events:none; }.orbit-slot.has-photo { pointer-events:auto; }
