@@ -1,10 +1,11 @@
 import {writeModeImages} from './miniprogram-modes.mjs';
 import {build} from 'esbuild';
-import {mkdir,readFile,writeFile,cp} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,cp,access} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import {miniProgramWasm} from './miniprogram-wasm.mjs';
 const root=fileURLToPath(new URL('../',import.meta.url));
 await mkdir(new URL('../miniprogram/lib/',import.meta.url),{recursive:true});
+try{await access(new URL('../miniprogram/lib/desktop-ble-config.js',import.meta.url));}catch{await writeFile(new URL('../miniprogram/lib/desktop-ble-config.js',import.meta.url),'module.exports=null;\n');}
 await writeFile(new URL('../src/miniprogram/resources.js',import.meta.url), '// Generated from the existing web assets by build:miniprogram.\nexport const presetBase64='+JSON.stringify((await readFile(new URL('../assets/preset1.bin',import.meta.url))).toString('base64'))+';\nexport const foods='+ (await readFile(new URL('../assets/food/manifest.json',import.meta.url),'utf8')).trim()+';\n');
 await build({absWorkingDir:root,entryPoints:['src/miniprogram/entry.js'],bundle:true,platform:'browser',format:'cjs',target:'es2020',
   outfile:'miniprogram/lib/t100.js',inject:['scripts/buffer-shim.js'],minify:true});
