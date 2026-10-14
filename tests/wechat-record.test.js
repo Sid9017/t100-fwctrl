@@ -62,17 +62,17 @@ test('repeated camera taps open only one picker; errors unlock the next attempt'
  await f.page.choosePhoto();assert.equal(calls,2);assert.equal(f.page.data.form.photos.length,1);assert.equal(f.page.data.error,'');
 });
 
-test('photo selection pauses rotation and animated deletion keeps the selected photo aligned',async()=>{
+test('photo selection and animated deletion keep the selected photo aligned',async()=>{
  const f=await setup();for(let i=0;i<3;i++)await f.page.choosePhoto();
  const photos=Array.from(f.page.data.form.photos);
- assert.equal(f.page.data.selectedPhotoIndex,2);assert.equal(f.page.data.photoEditing,true);
- f.page.selectPhoto({currentTarget:{dataset:{index:1}}});assert.equal(f.page.data.selectedPhotoIndex,1);assert.equal(f.page.data.photoEditing,true);
+ assert.equal(f.page.data.selectedPhotoIndex,2);
+ f.page.selectPhoto({currentTarget:{dataset:{index:1}}});assert.equal(f.page.data.selectedPhotoIndex,1);
  f.page.removePhoto({currentTarget:{dataset:{index:0}}});
  assert.equal(f.page.data.deletingPhotoIndex,0);assert.equal(f.page.data.form.photos.length,3);
  await f.page.persistMeal();assert.equal(f.page.data.summary,false);
  await new Promise(resolve=>setTimeout(resolve,240));
  assert.equal(f.page.data.deletingPhotoIndex,-1);assert.equal(f.page.data.selectedPhotoIndex,0);assert.equal(f.page.data.form.photos[0],photos[1]);
- f.page.nextMeal();assert.equal(f.page.data.photoEditing,false);
+ f.page.nextMeal();
  f.page.onUnload();
 });
 
@@ -100,4 +100,43 @@ test('meal switching is locked during capture and deletion, and leaving complete
 });
 test('incomplete calories stay unknown and cannot be sent to the device',async()=>{
  const f=await setup();await f.page.choosePhoto();await f.page.sync();assert.equal(f.sent.length,0);assert.match(f.page.data.error,/Enter calories/);
+});
+
+const photoEvent=(page,index)=>({currentTarget:{dataset:{index,path:page.data.photoSlots[index].path}}});
+test('photo entrance waits for image load and keeps loaded photos ready through addition and deletion',async()=>{
+ const {page}=await setup();await page.choosePhoto();
+ assert.equal(page.data.photoSlots[0].status,'loading');
+ page.photoLoaded(photoEvent(page,0));assert.equal(page.data.photoSlots[0].status,'ready');
+ await page.choosePhoto();assert.equal(page.data.photoSlots[0].status,'ready');assert.equal(page.data.photoSlots[1].status,'loading');
+ page.photoLoaded(photoEvent(page,1));const second=page.data.photoSlots[1].path;
+ page.removePhoto({currentTarget:{dataset:{index:0}}});page.finishPhotoRemoval();
+ assert.equal(page.data.photoSlots[0].path,second);assert.equal(page.data.photoSlots[0].status,'ready');
+ page.onUnload();
+});
+test('late image events cannot reveal another meal photo; failed images remain removable',async()=>{
+ const {page}=await setup();await page.choosePhoto();const stale=photoEvent(page,0);
+ page.nextMeal();await page.choosePhoto();page.photoLoaded(stale);page.photoFailed(stale);
+ assert.equal(page.data.photoSlots[0].status,'loading');assert.equal(page.data.error,'');
+ page.photoFailed(photoEvent(page,0));assert.equal(page.data.photoSlots[0].status,'failed');assert.match(page.data.error,/Could not load/);
+ page.removePhoto({currentTarget:{dataset:{index:0}}});page.finishPhotoRemoval();assert.equal(page.data.form.photos.length,0);
+ page.onUnload();page.photoLoaded(stale);assert.equal(page.data.photoSlots[0].status,'loading');
+});
+
+test('rating drag lights and dims dots, saves on release, and ignores the trailing tap',async()=>{
+ const f=await setup(),p=f.page;await p.choosePhoto();
+ let writes=0;const save=f.journal.saveMeal.bind(f.journal);f.journal.saveMeal=value=>{writes++;return save(value);};
+ p.ratingTouchStart({touches:[{clientX:70}],target:{dataset:{value:2}}});assert.equal(p.data.form.rating,2);
+ p.ratingTouchMove({touches:[{clientX:299}]});assert.equal(p.data.form.rating,5);
+ p.ratingTouchMove({touches:[{clientX:130}]});assert.equal(p.data.form.rating,3);assert.equal(writes,0);
+ p.ratingTouchEnd({changedTouches:[{clientX:70}]});assert.equal(p.data.form.rating,2);assert.equal(writes,1);assert.equal(f.journal.data.records[0].rating,2);
+ p.rating({currentTarget:{dataset:{value:5}}});assert.equal(p.data.form.rating,2);
+ f.setNow(new Date(2026,9,14,12,13));p.rating({currentTarget:{dataset:{value:4}}});assert.equal(p.data.form.rating,4);assert.equal(writes,2);
+});
+test('rating drag clamps at the edges and ignores late measurements after a meal switch',async()=>{
+ const {page:p}=await setup();p.ratingTouchStart({touches:[{clientX:30}],target:{dataset:{value:1}}});
+ p.ratingTouchMove({touches:[{clientX:-100}]});assert.equal(p.data.form.rating,1);
+ p.ratingTouchMove({touches:[{clientX:900}]});assert.equal(p.data.form.rating,5);p.ratingTouchEnd({changedTouches:[]});
+ let measure;p.createSelectorQuery=()=>({select(){return this;},boundingClientRect(fn){measure=fn;return this;},exec(){}});
+ p.ratingTouchStart({touches:[{clientX:299}],target:{dataset:{value:5}}});p.nextMeal();const next=p.data.form.rating;
+ measure({left:0,width:300});assert.equal(p.data.form.rating,next);assert.equal(p.ratingGesture,null);
 });

@@ -1,0 +1,10 @@
+<view class="nutrition-layout" wx:if="{{selected}}">
+  <view class="rings" id="rings" catchtouchstart="ringTouchStart" catchtouchmove="ringTouchMove" catchtouchend="ringTouchEnd" catchtouchcancel="ringTouchEnd">
+    <button wx:for="{{rings}}" wx:key="key" class="ring-control {{selectedKey === item.key ? 'is-selected' : ''}}" data-key="{{item.key}}" catchtap="selectRing" hover-class="none" aria-label="{{item.name+', '+item.total+' grams recorded'+(item.goal === null ? '' : ', daily target '+item.goal+' grams')+(item.partial ? ', partial data' : '')}}" aria-pressed="{{selectedKey === item.key}}"><image class="ring-image ring-normal" src="{{item.source}}" aria-hidden="true"/><image class="ring-image ring-expanded" src="{{item.expandedSource}}" aria-hidden="true"/></button>
+  </view>
+  <view class="nutrition-info" aria-live="polite">
+    <view class="nutrition-heading"><view class="nutrition-color" style="{{'background:'+selected.color+';'}}"/><text class="nutrition-name">{{selected.name}}</text></view>
+    <view class="nutrition-total">{{selected.total}}/{{selected.goal === null ? '—' : selected.goal}}<text class="nutrition-unit">g</text></view>
+    <text wx:if="{{selected.excess > 0}}" class="nutrition-excess">{{selected.excess}} g over target{{selected.percent === null ? '' : ' · '+selected.percent+'%'}}</text>
+  </view>
+</view>

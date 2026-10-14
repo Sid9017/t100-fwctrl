@@ -4,7 +4,8 @@
   "usingComponents": {
     "scroll-surface": "/components/scroll-surface/index",
     "device-setup": "/components/device-setup/index",
-    "live-device": "/pairing/device/index"
+    "live-device": "/pairing/device/index",
+    "nutrition-rings": "/components/nutrition-rings/index"
   },
   "componentPlaceholder": {
     "live-device": "view"
