@@ -148,6 +148,18 @@ The top bar has no disconnect button. The controls contain recipe settings, cont
 notifications and kcal history. The Wasm display is the only weight readout;
 preview-only inputs, target selection, device details and light controls are removed.
 
+Countdown has Remaining, Target and TDEE inputs. Target and TDEE are sent together
+as eight ASCII digits in authenticated topic 0x63 (17-byte wire), followed by signed
+remaining 0x64 and navigation 0x72. Both targets must be 1..9999, or both zero with
+zero remaining to clear. Older API callers omitting TDEE default to Target; the
+page requires an explicit TDEE. Wasm uses the firmware Scheme 3 gray bubble/pie
+renderer: nonnegative remaining is green, over-target is yellow while
+`TDEE > Target` and `abs(remaining) <= TDEE - Target`, then red. The pie proportion
+is `abs(remaining) / Target`, with opposite directions for Left/Over; zero is a
+gray circle. Positive remaining is capped at a nonzero Target. All thresholds
+use the supplied values, and changing TDEE alone repaints the preview. FEE5 does
+not report these kcal values, so this connection's completed writes supply them.
+
 The header's **Auth backup** action is available before connection (inside **Actions**
 on mobile). Its dialog accepts pasted JSON or a local JSON file and exports saved
 credentials as `t100-auth-backup.json`. Imports validate the complete batch before

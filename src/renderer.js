@@ -117,6 +117,7 @@ const refs = {
   simHistKcalInput: document.querySelector('#simHistKcalInput'),
   simCurrentKcalInput: document.querySelector('#simCurrentKcalInput'),
   simTargetKcalInput: document.querySelector('#simTargetKcalInput'),
+  simTdeeKcalInput: document.querySelector('#simTdeeKcalInput'),
   factoryBtn: document.querySelector('#factoryBtn'),
   simBindBtn: document.querySelector('#simBindBtn'),
   simOadBtn: document.querySelector('#simOadBtn'),
@@ -1024,6 +1025,7 @@ function clearScaleDisplay() {
   state.containerPending=null;
   refs.simContainerFields.dataset.containerUuid='';
   refs.simContainerWeight.value='';setContainerStatus('');
+  document.getElementById('simCountdownStatus').textContent='';
   state.scaleReading = null;
   renderScaleDisplay(null);
   renderCoffeeControls();
@@ -1617,6 +1619,7 @@ refs.simAppendKcalBtn.addEventListener('click', async () => {
 });
 
 refs.simKcalUpdateBtn.addEventListener('click', async () => {
+  const feedback=(message,error=false)=>{const status=document.getElementById('simCountdownStatus');status.textContent=message;status.dataset.state=error?'error':'success';};
   if (!state.connected) {
     pushSimLog('Countdown update failed: not connected');
     return;
@@ -1624,19 +1627,27 @@ refs.simKcalUpdateBtn.addEventListener('click', async () => {
   refs.simKcalUpdateBtn.disabled = true;
   let currentKcal;
   let targetKcal;
+  let tdeeKcal;
   try {
     currentKcal = parseKcalInputValue(refs.simCurrentKcalInput.value, 'Remaining', -9999);
     targetKcal = parseKcalInputValue(refs.simTargetKcalInput.value, 'Target');
+    tdeeKcal = parseKcalInputValue(refs.simTdeeKcalInput.value, 'TDEE');
+    if((targetKcal===0)!==(tdeeKcal===0))throw new Error('Target and TDEE must both be positive, or both 0 to clear countdown');
+    if(targetKcal===0 && currentKcal!==0)throw new Error('Remaining must be 0 when clearing countdown');
   } catch (error) {
+    feedback(error.message || String(error),true);
     pushSimLog(formatFailureMessage('Countdown update failed: ', error.message || String(error)));
     updateActionButtons();
     return;
   }
-  pushSimLog(`Sending countdown update: current ${currentKcal}, target ${targetKcal}…`);
+  pushSimLog(`Sending countdown update: remaining ${currentKcal}, target ${targetKcal}, TDEE ${tdeeKcal}…`);
+  feedback('Sending countdown…');
   try {
-    const result = await window.mfgApi.scaleUpdateKcal({ currentKcal, targetKcal });
+    const result = await window.mfgApi.scaleUpdateKcal({ currentKcal, targetKcal, tdeeKcal });
+    feedback(result.ok?'Countdown sent':result.message,!result.ok);
     pushSimLog(result.ok ? result.message : formatFailureMessage('Countdown update failed: ', result.message));
   } catch (error) {
+    feedback(error.message || String(error),true);
     pushSimLog(formatFailureMessage('Countdown update failed: ', error.message || String(error)));
   } finally {
     updateActionButtons();

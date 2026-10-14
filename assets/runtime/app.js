@@ -171,7 +171,7 @@ function dispatch(type, data = {}) {
         data.coffee?.uiPhase ?? 0, data.coffee?.primaryTargetMg ?? -1, data.coffee?.waterTargetMg ?? -1);
       break;
     case 'committed':
-      if (data.name === 'countdown') module.preview_remote_countdown(data.currentKcal, data.targetKcal);
+      if (data.name === 'countdown') module.preview_remote_countdown(data.currentKcal, data.targetKcal, data.tdeeKcal ?? data.targetKcal);
       else if (data.name === 'container') api.containerTopic(data.grams == null ? 0 : 1, Math.round((data.grams || 0)*1000));
       else if (data.name === 'notify') pendingNotice = data;
       break;
@@ -190,7 +190,7 @@ function dispatch(type, data = {}) {
     }
     case 'unit': $('unit').value = data.unit === 'oz' ? '1' : '0'; api.unit(data.unit === 'oz' ? 1 : 0); break;
     case 'targets': api.targets(validNumber(data.primary, 0, 1999.9), validNumber(data.water, 0, 1999.9)); break;
-    case 'kcal': api.kcal(validNumber(data.current, -9999, 9999), validNumber(data.target, 1, 9999)); break;
+    case 'kcal': api.kcal(validNumber(data.current, -9999, 9999), validNumber(data.target, 0, 9999), validNumber(data.tdee ?? data.target, 0, 9999)); break;
     case 'history': api.history(validNumber(data.kcal, 0, 9999)); break;
     case 'lights': api.lights(!!data.left, !!data.right, validNumber(data.brightness, 0, 100)); break;
     case 'notify': api.notify(String(data.text || '').slice(0, 24)); break;
@@ -212,7 +212,7 @@ window.t100Preview = { dispatch, ready: false,
       case 'scaleSetCoffeeRecipe': dispatch('targets', {primary:data.primaryTargetMg/1000,water:data.waterTargetMg/1000}); break;
       case 'setContainerWeight': dispatch('container', data); break;
       case 'setLightControl': dispatch('lights', {left:data.leftOn,right:data.rightOn,brightness:data.brightnessPercent}); break;
-      case 'scaleUpdateKcal': dispatch('kcal', {current:data.currentKcal,target:data.targetKcal}); break;
+      case 'scaleUpdateKcal': dispatch('kcal', {current:data.currentKcal,target:data.targetKcal,tdee:data.tdeeKcal}); break;
       case 'notifyDisplay': {
         if (module.notify_ui_prepare_update()<0) throw new Error('Notification is transitioning');
         const gray = new Uint8Array(module.memory.buffer,module.preview_notify_gray(),5088);
@@ -342,7 +342,7 @@ fetch('preview.wasm?v=20261004-latest-figma').then((response) => {
     currentMode: x.preview_mode, reference: x.preview_reference, setReference: x.preview_set_reference,
     weight: x.preview_set_weight, unit: x.preview_set_unit,
     containerTopic: x.preview_container_topic, containerMg: x.preview_container_mg, netMg: x.preview_net_mg,
-    targets: x.preview_set_targets, kcal: x.preview_set_kcal,
+    targets: x.preview_set_targets, kcal: x.preview_set_countdown,
     batteryLevel:x.preview_battery_level, batteryPower:x.preview_battery_power, batteryIdle:x.preview_battery_idle,
     history: x.preview_add_history, historyMeta: x.preview_history_meta, historyPhoto: x.preview_history_photo, lights: x.preview_set_light,
     boot: () => { x.preview_boot_start(); x.preview_render(); }, leftOpacity: x.preview_left_opacity, leftLight: x.preview_light_left, rightLight: x.preview_light_right, lightLevel: x.preview_light_level,

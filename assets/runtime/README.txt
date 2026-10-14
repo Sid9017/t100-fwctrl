@@ -2,6 +2,7 @@ T100 Web Runtime
 
 Rebuilt from bk-hw-temp/projects/t100/web_runtime and shared firmware sources,
 source checkout HEAD ba117b4de604f60bc6289b5b59c3609b474d27f6.
+Includes that checkout's staged 2026-10-14 Scheme 3 countdown/TDEE changes.
 
 Rebuild:
   node scripts/build-runtime.mjs /path/to/t100/web_runtime
@@ -20,8 +21,9 @@ Adapters:
 - app.js: browser transport, canvas brightness for PWM, English labels and layout.
 
 BLE controls remain in the parent app. FEE1 v2/v3 scale snapshots and FEE5 status flow one way
-into Wasm; virtual keys are disabled while connected. Successful countdown,
-immediate notification writes are mirrored for this connection. Container state
+into Wasm; virtual keys are disabled while connected. Completed countdown writes
+(remaining, Target and TDEE via the shared Scheme 3 renderer) and immediate
+notification writes are mirrored for this connection. Container state
 comes from FEE1, with UUID confirmation handled by the parent app. The appended
 v3 UUID does not change the Wasm drawing ABI.
 Unknown history/countdown/notification content is blank, explained outside the
@@ -35,7 +37,7 @@ Verification:
   npm test
   node scripts/test-runtime-upstream.mjs /path/to/t100/web_runtime
   npm run test:browser
-The upstream check runs 20 unchanged drawing contracts. Three legacy software
+The upstream check runs 21 unchanged drawing contracts. Three legacy software
 fade cases are replaced by explicit firmware PWM timing/pixel tests locally.
 
 Rebuilt with the working-tree kcal-only History renderer and single-argument

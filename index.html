@@ -188,8 +188,12 @@
                         aria-label="Target value"
                       />
                     </label>
+                    <label class="field sim-kcal-field"><span>TDEE kcal</span>
+                      <input id="simTdeeKcalInput" type="number" min="0" max="9999" step="1" inputmode="numeric" placeholder="TDEE" aria-label="TDEE kcal" />
+                    </label>
                   </div>
                   <button id="simKcalUpdateBtn" class="action-button" type="button">Update countdown</button>
+                  <p id="simCountdownStatus" class="countdown-status" role="status" aria-atomic="true"></p>
                 </div>
 
                 <div class="sim-control-card compact-row">

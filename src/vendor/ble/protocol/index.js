@@ -38,7 +38,7 @@ const TOPICS = Object.freeze({
   bindCommit: 0x54,
   scaleTare: 0x61,
   scaleUnit: 0x62,
-  /** Countdown preset (target KCal) → Flash via FEE0 topic 0x63. */
+  /** Countdown target + TDEE (two ASCII4 fields) → Flash via topic 0x63. */
   countdownPreset: 0x63,
   /** Countdown remaining (current KCal) → Flash via FEE0 topic 0x64. */
   countdownRemaining: 0x64,

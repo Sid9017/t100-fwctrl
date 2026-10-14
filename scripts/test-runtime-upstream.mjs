@@ -8,7 +8,7 @@ const source=resolve(process.argv[2] || '../bk-hw-temp/projects/t100/web_runtime
 const temp=await mkdtemp(join(tmpdir(),'t100-upstream-tests-'));
 // Those three old software-fade timings are replaced by PWM/settle tests in
 // tests/runtime-parity.test.js. Their firmware drawing contracts still run.
-const files=['battery','boot-logo','espresso','pourover','notify-damage'];
+const files=['battery','boot-logo','espresso','pourover','notify-damage','countdown'];
 try {
   const dir=join(temp,'web_runtime');await mkdir(dir);
   for(const name of files)await copyFile(join(source,`${name}.test.js`),join(dir,`${name}.test.js`));

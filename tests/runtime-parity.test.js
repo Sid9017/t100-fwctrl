@@ -97,9 +97,9 @@ test('reset and board sleep fade the panel without confusing Idle Sleep with pow
 });
 test('unknown content stays blank; committed countdown uses the firmware renderer and clears on a new session',async()=>{
   const x=await runtime();status(x,3,{phase:1});assert.equal(x.preview_remote_missing(),1);assert.ok(pixels(x).every(v=>v===0));
-  x.preview_remote_countdown(-180,1800);assert.equal(x.preview_remote_missing(),0);const actual=pixels(x);
+  x.preview_remote_countdown(-180,1800,2200);assert.equal(x.preview_remote_missing(),0);const actual=pixels(x);
   new Uint16Array(x.memory.buffer,x.preview_pixels(),25600).fill(0);
-  x.countdown_view_draw(x.preview_pixels(),-180,1800,0,0,320,80,1);assert.deepEqual(pixels(x),actual);
+  x.countdown_view_draw(x.preview_pixels(),-180,1800,2200,0,0,320,80,1);assert.deepEqual(pixels(x),actual);
   x.preview_reset();status(x,3,{phase:1});assert.equal(x.preview_remote_missing(),1);assert.ok(pixels(x).every(v=>v===0));
 });
 test('Kitchen holds grow for 500 ms after PWM entry and cancel before completion',async()=>{

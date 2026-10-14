@@ -183,7 +183,7 @@ test('scale profiles, container, countdown, notifications and food photos preser
   await mockBluetooth(page);await connect(page);
   await page.locator('#simContainerWeight').fill('100');await page.locator('#simContainerSet').click();
   await expect.poll(()=>page.evaluate(()=>mock.writes.some(w=>w.data[0]===0x77))).toBe(true);
-  await page.locator('#simCurrentKcalInput').fill('-180');await page.locator('#simTargetKcalInput').fill('2000');
+  await page.locator('#simCurrentKcalInput').fill('-180');await page.locator('#simTargetKcalInput').fill('2000');await page.locator('#simTdeeKcalInput').fill('2500');
   await page.locator('#simKcalUpdateBtn').click();await expect(page.locator('#simLog')).toContainText('Countdown updated');
   await page.locator('#simNotifyTextInput').fill('Hello');await page.locator('#simNotifyBtn').click();
   await expect(page.locator('#simLog')).toContainText('Notify sent',{timeout:15000});
@@ -629,7 +629,7 @@ test('live preview uses committed countdown and notify pixels, keeps unknown his
   const runtime=page.frameLocator('#runtimeFrame');
   await expect(runtime.locator('#leftLed')).toBeDisabled();
   await expect(runtime.locator('#rightLed')).toBeDisabled();
-  await page.locator('#simCurrentKcalInput').fill('-180');await page.locator('#simTargetKcalInput').fill('1800');
+  await page.locator('#simCurrentKcalInput').fill('-180');await page.locator('#simTargetKcalInput').fill('1800');await page.locator('#simTdeeKcalInput').fill('2200');
   await page.locator('#simKcalUpdateBtn').click();await expect(page.locator('#simLog')).toContainText('Countdown updated');
   await page.evaluate(()=>mock.notifyStatus(3,undefined,{phase:1}));
   await expect.poll(()=>page.evaluate(()=>document.querySelector('#runtimeFrame').contentWindow.t100Preview.missingContent)).toBe('');
@@ -800,6 +800,35 @@ test('FEE1 v2 reaches Wasm with signed net and independent info units; inactive 
   await page.evaluate(()=>mock.disconnect());
   await expect.poll(()=>frame.locator('body').evaluate(()=>testWasm.preview_snapshot_flags())).toBe(-1);
   expect(errors).toEqual([]);
+});
+
+test('countdown sends Target/TDEE together, validates before writing and renders dynamic TDEE boundaries on mobile',async({page})=>{
+  await page.setViewportSize({width:375,height:812});await mockBluetooth(page);await connect(page);
+  const status=page.locator('#simCountdownStatus'),frame=page.frameLocator('#runtimeFrame');
+  const pixel=()=>frame.locator('body').evaluate(()=>new Uint16Array(testWasm.memory.buffer,testWasm.preview_pixels(),25600)[40*80+3]);
+  await page.locator('#simCurrentKcalInput').fill('-250');await page.locator('#simTargetKcalInput').fill('1350');
+  await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('TDEE is required');
+  expect(await page.evaluate(()=>mock.writes.filter(w=>[0x63,0x64,0x72].includes(w.data[0])).length)).toBe(0);
+  await page.locator('#simTdeeKcalInput').fill('0');await page.locator('#simKcalUpdateBtn').click();
+  await expect(status).toContainText('Target and TDEE must both be positive');
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.data[0]===0x63).length)).toBe(0);
+  await page.locator('#simTdeeKcalInput').fill('1600');await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('Countdown sent');
+  await page.evaluate(()=>mock.notifyStatus(3,undefined,{phase:1}));
+  await expect.poll(pixel).toBe(0xfeac);
+  const writes=await page.evaluate(()=>mock.writes.filter(w=>[0x63,0x64,0x72].includes(w.data[0])));
+  expect(writes.map(w=>w.data[0])).toEqual([0x63,0x64,0x72]);
+  expect(writes[0].data).toEqual([0x63,...Buffer.from('TEST1234'),...Buffer.from('13501600')]);
+  expect(writes[1].data.slice(9)).toEqual([...Buffer.from('-0250')]);
+  await page.locator('#simCurrentKcalInput').fill('-251');await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('Countdown sent');await expect.poll(pixel).toBe(0xea2a);
+  // Changing only TDEE changes the boundary; neither threshold is fixed.
+  await page.locator('#simTdeeKcalInput').fill('1700');await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('Countdown sent');await expect.poll(pixel).toBe(0xfeac);
+  await page.locator('#simTargetKcalInput').fill('1700');await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('Countdown sent');await expect.poll(pixel).toBe(0xea2a);
+  const row=await page.locator('.sim-kcal-fields').evaluate(el=>{const boxes=[...el.children].map(x=>x.getBoundingClientRect());return {tops:boxes.map(x=>x.top),width:el.clientWidth,scrollWidth:el.scrollWidth};});
+  expect(new Set(row.tops).size).toBe(1);expect(row.scrollWidth).toBeLessThanOrEqual(row.width);
+  await page.locator('.sim-kcal-fields').scrollIntoViewIfNeeded();await page.screenshot({path:'/tmp/t100-countdown-tdee-mobile.png'});
+  for(const id of ['simCurrentKcalInput','simTargetKcalInput','simTdeeKcalInput'])await page.locator('#'+id).fill('0');
+  await page.locator('#simKcalUpdateBtn').click();await expect(status).toHaveText('Countdown sent');
+  expect(await page.evaluate(()=>mock.writes.filter(w=>w.data[0]===0x63).at(-1).data.slice(9))).toEqual([...Buffer.from('00000000')]);
 });
 
 test('auth backup imports pasted credentials atomically, merges devices and exports a local JSON backup',async({page})=>{

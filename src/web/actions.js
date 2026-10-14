@@ -208,10 +208,11 @@ export class DeviceActions {
     });
   }
 
-  async scaleUpdateKcal({ currentKcal, targetKcal } = {}) {
+  async scaleUpdateKcal({ currentKcal, targetKcal, tdeeKcal = targetKcal } = {}) {
     const [target, current, navigate] = buildFee0CountdownUpdateSequence({
       currentKcal,
       targetKcal,
+      tdeeKcal,
     });
     return this.runGattAction('Countdown update', async () => {
       const { connection, entry } = this.requireConnectedEntry();
@@ -228,13 +229,13 @@ export class DeviceActions {
         requireWriteResponse: true,
       });
       await delay(VENDOR_TOPIC_SETTLE_MS);
-      this._previewCommit?.('countdown', {currentKcal:Number(currentKcal), targetKcal:Number(targetKcal)});
       await this.session.writeVendorPayload(connection, wireNavigate, {
         requireWriteResponse: true,
       });
+      this._previewCommit?.('countdown', {currentKcal:Number(currentKcal), targetKcal:Number(targetKcal),tdeeKcal:Number(tdeeKcal)});
       return {
         ok: true,
-        message: `Countdown updated and opened: current ${Number(currentKcal)}, target ${Number(targetKcal)}`,
+        message: `Countdown updated and opened: remaining ${Number(currentKcal)}, target ${Number(targetKcal)}, TDEE ${Number(tdeeKcal)}`,
       };
     });
   }

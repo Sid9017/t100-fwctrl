@@ -180,7 +180,7 @@ void preview_apply_device_status(int screen, int phase, int board, unsigned flag
     preview_idle_opacity = screen == 2 ? 51 : 255;
     preview_unknown_content = ((screen == 3 && phase != 0 && !countdown_known) ? 1u : 0u)
                             | (screen == 5 ? 2u : 0u) | (screen == 6 && !notify_known ? 4u : 0u);
-    if (screen == 3 && phase == 0) { current_kcal=0;target_kcal=0;countdown_known=0; }
+    if (screen == 3 && phase == 0) { current_kcal=0;target_kcal=tdee_kcal=0;countdown_known=0; }
     if (target == NOTIFY) {
         if (last_status_screen != screen && !notify_ui_is_active()) {
             if (!notify_known) for(unsigned i=0;i<5088;i++)notify_bmp_buf()[i]=0;
@@ -229,8 +229,9 @@ void preview_tick(uint32_t ms) {
         !notify_ui_pwm_request().token && scene != remote_target(last_status_screen))
         { remote_select(remote_target(last_status_screen),0,remote_profile); remote_sync_coffee(); preview_render(); }
 }
-void preview_remote_countdown(int current, unsigned target) {
-    current_kcal=current;target_kcal=target;countdown_known=1;
+void preview_remote_countdown(int current, unsigned target, unsigned tdee) {
+    target_kcal=target;tdee_kcal=tdee;
+    current_kcal=target && current>(int)target?(int)target:current;countdown_known=1;
     preview_unknown_content &= ~1u; preview_render();
 }
 void preview_remote_notify(unsigned color) {

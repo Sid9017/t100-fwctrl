@@ -15,8 +15,19 @@ function buildFee0KcalTopicPayload(topicByte, kcal) {
   return buf;
 }
 
+function buildFee0CountdownTargetPayload(targetKcal, tdeeKcal = targetKcal) {
+  for(const [label,value] of [['Target',targetKcal],['TDEE',tdeeKcal]]) {
+    if((typeof value!=='number' && typeof value!=='string') || String(value).trim()==='' ||
+       !Number.isInteger(Number(value)) || Number(value)<0 || Number(value)>FEE0_KCAL_MAX)
+      throw new Error(`${label} must be an integer 0–${FEE0_KCAL_MAX}`);
+  }
+  if((Number(targetKcal)===0)!==(Number(tdeeKcal)===0))throw new Error('Target and TDEE must both be positive, or both 0 to clear countdown');
+  return Buffer.concat([buildFee0KcalTopicPayload(0x63,targetKcal),buildFee0KcalTopicPayload(0x63,tdeeKcal).subarray(1)]);
+}
+
 module.exports = {
   FEE0_KCAL_DIGITS,
   FEE0_KCAL_MAX,
   buildFee0KcalTopicPayload,
+  buildFee0CountdownTargetPayload,
 };
