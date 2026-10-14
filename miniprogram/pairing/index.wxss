@@ -1,0 +1,5 @@
+.pairing-page { height:100vh; min-height:100%; display:flex; flex-direction:column; padding:64rpx 40rpx calc(40rpx + env(safe-area-inset-bottom)); }
+.pairing-heading { padding-top:32rpx; }.pairing-heading .title { margin-top:32rpx; }.pairing-heading .muted { margin-top:16rpx; }
+.pairing-canvas { display:block; width:100%; height:560rpx; margin:auto 0; flex:none; }
+.pairing-footer { min-height:96rpx; display:flex; flex-direction:column; align-items:center; gap:16rpx; padding-top:32rpx; }.pairing-footer .primary { width:56px; height:56px; padding:0; }.pairing-footer .ui-icon { margin:0; }
+@media(max-height:650px){.pairing-page { padding-top:24rpx; }.pairing-heading { padding-top:0; }.pairing-canvas { height:420rpx; }}

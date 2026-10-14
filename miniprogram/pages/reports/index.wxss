@@ -1,0 +1,26 @@
+.report-mode-wheel { width:264rpx; height:108rpx; min-height:48px; flex:none; background:transparent; -webkit-mask-image:linear-gradient(transparent,#000 33.333%,#000 66.667%,transparent); mask-image:linear-gradient(transparent,#000 33.333%,#000 66.667%,transparent); }.report-mode-option { height:36rpx; display:flex; align-items:center; justify-content:flex-end; }.report-mode-title { flex:none; }.report-wheel-indicator::before,.report-wheel-indicator::after { border:0; }.segments { position:relative; display:flex; gap:8rpx; padding:8rpx; background:#f1f1f5; border-radius:999rpx; margin:36rpx 0 24rpx; }.segments button { position:relative; z-index:1; transition:color 220ms ease; flex:1; min-width:0; background:transparent; font-weight:500; font-size:26rpx; }.segments button.active { background:transparent; color:#fff; }.report-progress { margin:32rpx 0 16rpx; }.week-chart { display:flex; height:330rpx; gap:8rpx; margin-top:48rpx; }.chart-column { min-width:0; flex:1; flex-direction:column; justify-content:flex-end; padding:0; background:transparent; border-radius:0; font-size:24rpx; gap:10rpx; }.bar-space { height:240rpx; width:100%; position:relative; margin-bottom:8rpx; }.chart-bar { position:absolute; bottom:0; left:20%; width:60%; background:#b7de00; border-radius:16rpx 16rpx 8rpx 8rpx; min-height:0; }.chart-bar.warning { background:#fed563; }.chart-bar.danger { background:#f68979; }.target-tick { position:absolute; width:80%; left:10%; height:2px; background:#353535; }.chart-legend { display:flex; align-items:center; gap:12rpx; font-size:20rpx; color:#656b5f; margin-top:24rpx; }.legend-lime { width:16rpx; height:16rpx; border-radius:50%; background:#b7de00; }.legend-line { width:20rpx; height:2px; background:#353535; margin-left:12rpx; }.calendar-grid { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:16rpx 4rpx; }.weekday { text-align:center; font-size:22rpx; color:#96999a; padding:12rpx 0; }.calendar-day { position:relative; display:flex; flex-direction:column; width:100%; min-width:0; min-height:48px; padding:16rpx 0; gap:10rpx; font-size:26rpx; font-weight:500; background:transparent; border-radius:50%; }.calendar-day.selected { background:#353535; color:#fff; }.calendar-day[disabled] { background:transparent; color:#c8cbc1; }.calendar-dot { width:8rpx; height:8rpx; background:#9bbc00; border-radius:50%; position:absolute; bottom:6rpx; }.calendar-dot.warning { background:#d5a13b; }.calendar-dot.danger { background:#ed6b76; }.calendar-legend { display:flex; flex-direction:column; gap:10rpx; margin-top:24rpx; font-size:22rpx; color:#656b5f; }.calendar-card { padding:24rpx; }.calendar-card .card-heading { gap:8rpx; font-size:28rpx; }
+
+.week-totals { margin-top:28rpx; padding-top:20rpx; border-top:1px solid #edf0e5; display:flex; flex-direction:column; gap:12rpx; font-size:24rpx; }.chart-column.selected > text { font-weight:750; color:#353535; }.chart-column.selected .bar-space { border-bottom:2px solid #353535; }
+
+.segments::before { content:""; position:absolute; top:8rpx; bottom:8rpx; left:8rpx; width:calc((100% - 24rpx)/2); border-radius:999rpx; background:#353535; transform:translateX(0); transition:transform 300ms cubic-bezier(.22,.68,0,1); }
+.segments.month-selected::before { transform:translateX(calc(100% + 8rpx)); }
+.report-content { opacity:1; transition:opacity 240ms ease; }
+.report-content.leaving { opacity:0; pointer-events:none; transition-duration:160ms; }
+.period-transition { overflow:hidden; transition:height 280ms cubic-bezier(.22,.68,0,1),opacity 220ms ease; opacity:1; }
+.period-content { padding-bottom:24rpx; }
+.period-content .card { margin:0; }
+.daily-report { margin-top:0; }
+.period-transition.closing { opacity:0; transition:height 180ms cubic-bezier(.4,0,.8,.4),opacity 140ms ease; pointer-events:none; }
+.period-transition.swapping { opacity:0; transition:none; pointer-events:none; }
+.period-transition.prepared { transition:none; }
+@media (prefers-reduced-motion:reduce) {
+ .segments::before,.segments button,.report-content,.period-transition { transition:none; }
+ .report-content.leaving { opacity:1; }
+ .period-transition { height:auto!important; opacity:1!important; }
+}
+
+/* Every firmware title uses the KCal scale factor (180 / 210), including descenders. */
+.report-mode-kcal { width:180.000rpx; height:22.286rpx; }
+.report-mode-kitchen { width:232.286rpx; height:23.143rpx; }
+.report-mode-espresso { width:263.143rpx; height:25.714rpx; }
+.report-mode-pourover { width:259.714rpx; height:22.286rpx; }

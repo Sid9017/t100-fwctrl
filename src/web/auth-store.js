@@ -10,7 +10,7 @@ export function validateRecord(record) {
   return { pub_key: record.pub_key, auth_key: record.auth_key, deviceId: String(record.deviceId || ''), name: String(record.name || '') };
 }
 export function parseAuthImport(text) {
-  if(typeof text!=='string' || new TextEncoder().encode(text).length>1024*1024)throw new Error('Auth JSON must be smaller than 1 MB.');
+  if(typeof text!=='string' || Buffer.byteLength(text,'utf8')>1024*1024)throw new Error('Auth JSON must be smaller than 1 MB.');
   let parsed;
   try{parsed=JSON.parse(text.replace(/^\uFEFF/,''));}
   catch{throw new Error('Invalid JSON. Paste an auth object or an array of auth records.');}

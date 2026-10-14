@@ -1,0 +1,5 @@
+<view class="app-page theme-{{themeProfile}} pairing-page">
+  <view class="pairing-heading"><view class="wordmark brand-lockup"><image class="brand-logo" src="/assets/ui/kcalbot.svg" mode="aspectFit" aria-hidden="true"/><text>KCALACK</text></view><text class="title">Connected.</text><text class="muted">{{name}}</text></view>
+  <canvas type="2d" id="pairing" class="pairing-canvas" aria-label="KCALACK scale turns from overhead to a 45-degree view"/>
+  <view class="pairing-footer"><text wx:if="{{error}}" class="muted">{{error}}</text><view class="row"><button wx:if="{{preview && ready}}" class="round-button" aria-label="Replay pairing animation" bindtap="replay"><image class="ui-icon" aria-hidden="true" src="/assets/icons/refresh.svg"/></button><button class="primary" aria-label="Continue to your device" bindtap="continue"><image class="ui-icon" aria-hidden="true" src="/assets/icons/arrow-right-light.svg"/></button></view></view>
+</view>

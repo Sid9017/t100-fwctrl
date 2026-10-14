@@ -17,10 +17,12 @@ const { GATT, TOPICS } = protocol;
 const matches = (a,b) => canonicalUuid(a) === canonicalUuid(b) || (String(b).replaceAll('-','').length === 32 && uuidHelpers.uuidMatches128(a,b));
 
 export class BrowserConsole extends DeviceActions {
-  constructor({ adapter = new WebGattAdapter(), auth = new AuthStore(), bluetooth = globalThis.navigator?.bluetooth } = {}) {
+  constructor({ adapter = new WebGattAdapter(), auth = new AuthStore(), bluetooth = globalThis.navigator?.bluetooth,
+    verifyToken = verifyAdmissionToken, loadEmotion = loadPreset, rasterFood, oadTrust } = {}) {
     super(); this.adapter=adapter; this.auth=auth; this.bluetooth=bluetooth;
     this.session=new T100Session({adapter}); this.listeners=new Map(); this.devices=new Map();
     this.connection=null; this.entry=null; this.busy=false; this.connecting=false; this.selecting=false; this.abortRef=null;
+    this.verifyToken=verifyToken;this.loadEmotion=loadEmotion;this.rasterFood=rasterFood;this.oadTrust=oadTrust;
   }
   on(event, callback) {
     if (!this.listeners.has(event)) this.listeners.set(event,new Set());
@@ -167,14 +169,14 @@ export class BrowserConsole extends DeviceActions {
       if (entry.ui.bindState === 'bound' && !this.auth.resolve(entry.device)) {
         throw new Error('Device reports BOUND, but this browser has no saved auth credential. Restore its auth JSON from the browser or app used to bind it. Clicking Bind again cannot recover the credential.');
       }
-      const preset=await loadPreset();
+      const preset=await this.loadEmotion();
       if(abortRef.aborted || this.connection!==connection) throw new Error('Binding cancelled');
       const {characteristics}=await this.discoverAll(connection);
       if(entry.ui.bindState!=='bound') {
         const token=this.pickBindTokenChar(characteristics);
         if(!token) throw new Error('Binding token is unavailable. Disconnect, select the device again to refresh Bluetooth permissions, and retry.');
         const raw=await this.adapter.readCharacteristic(connection,token);
-        const record=await verifyAdmissionToken(raw.toString('utf8').replace(/\0.*$/s,''));
+        const record=await this.verifyToken(raw.toString('utf8').replace(/\0.*$/s,''));
         if(abortRef.aborted || this.connection!==connection) throw new Error('Binding cancelled');
         // Persist and verify BEFORE committing; retain it if the link/upload fails.
         this.auth.save({...record,deviceId:entry.device.id,name:entry.device.name});
@@ -251,7 +253,7 @@ export class BrowserConsole extends DeviceActions {
       if(currentVersion===targetVersion)throw new Error(`The device already runs firmware ${targetVersion}. No upgrade is needed.`);
       const discovery=await this.discoverSignedOad(connection);
       const result=await runSignedOad({adapter:this.adapter,connection,discovery,bytes,manifest,auth8:Buffer.from(credential.auth_key,'ascii'),abortRef,
-        onProgress:progress=>this.emit('SimOadProgress',{progress})});
+        onProgress:progress=>this.emit('SimOadProgress',{progress}),trust:this.oadTrust});
       await this.disconnect();this.emit('SessionIdle',{state:'idle'});
       return {...result,message:'Signed firmware committed by the device. Reconnect to verify firmware.',elapsedMs:Date.now()-started};
     },45*60*1000);

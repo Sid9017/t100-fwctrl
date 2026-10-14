@@ -313,3 +313,10 @@ up to 496 BIN bytes per packet, an eight-chunk window and missing-chunk bitmap
 retransmission. It retains the same signed manifest, final device verification
 and antirollback policy. Deploy the browser before schema2 firmware; see
 [docs/signed-ota.md](docs/signed-ota.md).
+
+# Native WeChat project
+
+The primary client is the native WeChat Mini Program,
+`kcalack-t100` (`wx30eebce62206e490`). Run `npm run build:miniprogram` and import
+the repository root into WeChat Devtools; see [miniprogram/README.md](miniprogram/README.md).
+Its native BLE adapter reuses the existing commands, binding, FEE1/FEE5 decoders and signed ChunkX OAD implementation. The hosted service continues providing OAD releases.

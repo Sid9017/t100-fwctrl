@@ -6,3 +6,8 @@ dist/
 !.env.example
 test-results/
 playwright-report/
+miniprogram/lib/
+project.private.config.json
+assets/pairing/build/
+
+.DS_Store

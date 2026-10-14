@@ -1,0 +1,7 @@
+{
+  "disableScroll": true,
+  "navigationBarTitleText": "KCALACK",
+  "usingComponents": {
+    "scroll-surface": "/components/scroll-surface/index"
+  }
+}

@@ -17,14 +17,15 @@ export function decompressP256(publicKey) {
   if (Number(y & 1n) !== (publicKey[0] & 1)) y = P-y;
   return Buffer.concat([Buffer.from([4]), publicKey.subarray(1), Buffer.from(y.toString(16).padStart(64,'0'),'hex')]);
 }
-export async function verifyAdmissionToken(token, now = Math.floor(Date.now()/1000)) {
+export async function verifyAdmissionToken(token, now = Math.floor(Date.now()/1000), subtle = globalThis.crypto?.subtle) {
   const parts = token.split('.');
   if (parts.length !== 3 || parts.some(s => !/^[A-Za-z0-9_-]+$/.test(s))) throw new Error('Invalid binding token');
   const [pub, payload, sig] = parts.map(s => Buffer.from(s.replaceAll('-','+').replaceAll('_','/'),'base64'));
   const publicHex = pub.toString('hex');
   if (sig.length !== 64 || payload.length < 16) throw new Error('Invalid binding token length');
-  const key = await crypto.subtle.importKey('raw', decompressP256(pub), { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
-  if (!await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,sig,Buffer.from(`${parts[0]}.${parts[1]}`))) {
+  if(!subtle)throw new Error('Signature verification is unavailable');
+  const key = await subtle.importKey('raw', decompressP256(pub), { name:'ECDSA', namedCurve:'P-256' }, false, ['verify']);
+  if (!await subtle.verify({name:'ECDSA',hash:'SHA-256'},key,sig,Buffer.from(`${parts[0]}.${parts[1]}`))) {
     throw new Error('Binding token signature verification failed');
   }
   const iat = payload.readUInt32LE(8), exp = payload.readUInt32LE(12);

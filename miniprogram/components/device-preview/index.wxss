@@ -1,0 +1,8 @@
+:host { display:block; width:100%; }
+.device { position:relative; width:100%; height:0; padding-bottom:76.470588%; }
+.chassis { position:absolute; left:0; top:0; width:100%; height:100%; }
+.light-bar { position:absolute; left:15%; top:71%; width:70%; height:16.884615%; background:#000; border-radius:999px; }
+.panel { position:absolute; left:18.503937%; top:7.45%; width:62.992126%; height:85.1%; }
+.led { position:absolute; top:38.3%; width:3.318898%; height:22.15%; border-radius:50%; background:#fff; box-shadow:0 0 5px #fff8; }
+.left { left:4.238189%; } .right { left:92.614173%; }
+.message { padding:12rpx 0; color:#656b5f; font-size:24rpx; line-height:1.5; }

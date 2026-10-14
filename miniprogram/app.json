@@ -1,0 +1,28 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/plan/index",
+    "pages/devices/index",
+    "pages/device/index",
+    "pages/firmware/index",
+    "pages/record/index",
+    "pages/reports/index",
+    "pages/profile/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "KCALACK",
+    "navigationBarBackgroundColor": "#f9faf5",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#f9faf5"
+  },
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents",
+  "subpackages": [
+    {
+      "root": "pairing",
+      "pages": [
+        "index"
+      ]
+    }
+  ]
+}

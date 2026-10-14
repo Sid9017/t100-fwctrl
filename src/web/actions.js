@@ -332,6 +332,14 @@ export class DeviceActions {
     }, actionTimeoutMs);
   }
 
+  async deleteKcalHist({uuid}={}) {
+    const {buildKcalHistDeletePayload}=historyWire;
+    return this.runGattAction('Delete Kcal history',async()=>{
+      await this.writeVendorPayloadWithOptionalAuth(buildKcalHistDeletePayload(uuid));
+      return {ok:true,message:'Device history delete request sent'};
+    });
+  }
+
   async appendKcalHist({ kcal, foodFile, foodFiles, noImage,
     uuid, timestampUtc, rating = 4 } = {}) {
     const kcalN = Number(kcal);
@@ -342,7 +350,7 @@ export class DeviceActions {
       throw new Error('Select up to three 40x40 photos');
     }
     const images = await Promise.all(files.map(async file => {
-      const raster = await rasterFoodPng(String(file));
+      const raster = await (this.rasterFood || rasterFoodPng)(String(file));
       if (raster.wx !== 40 || raster.wy !== 40) throw new Error('Each photo must remain 40x40 pixels');
       return raster.bytes;
     }));

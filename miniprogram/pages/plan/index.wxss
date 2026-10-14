@@ -1,0 +1,15 @@
+.onboarding-progress { margin-bottom:48rpx; height:10rpx; }.kcalbot { width:72rpx; height:72rpx; display:block; margin-bottom:28rpx; }.choice { justify-content:space-between; text-align:left; padding:28rpx; margin-bottom:16rpx; background:#f7f7fa; border:1px solid transparent; border-radius:28rpx; }.choice.selected { background:#f2f8d9; border-color:#b7de00; }.choice-dot { width:30rpx; height:30rpx; border:2px solid #c7cbbf; border-radius:50%; flex:none; margin-left:20rpx; }.selected .choice-dot { border:8rpx solid #9bbc00; background:#fff; }.choice .muted { margin-top:8rpx; font-size:22rpx; }.choice > view:first-child { min-width:0; }.target-pill { display:flex; align-items:baseline; gap:16rpx; justify-content:center; background:#d8eb83; border-radius:999rpx; padding:24rpx; margin-bottom:36rpx; }.target-pill > text:first-child { font-size:64rpx; letter-spacing:-3rpx; font-weight:700; }.target-pill > text:last-child { font-size:22rpx; }.activity-field { margin-top:28rpx; }.wizard-actions { padding-top:12rpx; }.plan-page { padding-bottom:calc(40rpx + env(safe-area-inset-bottom)); }
+
+.dev-preview-button { display:flex; align-items:center; min-height:48px; font-size:22rpx; padding:0 16rpx; background:#edf4d4; border-radius:99rpx; }
+
+/* Keep all fourth-step fields and the save action on one phone screen. */
+.plan-page.review { min-height:100vh; display:flex; flex-direction:column; padding-top:16rpx; padding-bottom:calc(20rpx + env(safe-area-inset-bottom)); }
+.review .app-top { margin-bottom:12rpx; }.review .onboarding-progress { margin-bottom:20rpx; }.review .title { font-size:46rpx; }
+.review .card { margin:16rpx 0 0; padding:24rpx; border-radius:32rpx; }.review .card-heading { margin-bottom:16rpx; font-size:26rpx; }
+.review .field { gap:8rpx; margin:0; font-size:24rpx; }.review .field input { min-height:48px; height:48px; padding:12rpx 16rpx; font-size:32rpx; border-radius:18rpx; }
+.review .form-grid { gap:16rpx; }.estimate-note { display:block; margin-top:12rpx; font-size:22rpx; color:#656b5f; }
+.macro-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16rpx; }.macro-total { margin-left:auto; font-size:24rpx; color:#596529; }.macro-total.invalid { color:#ac3936; }
+.review .nutrition-plan .card-heading { min-height:48px; margin-bottom:8rpx; gap:16rpx; }.recalculate-plan { background:#f3f5eb; }
+.review .fiber-field { margin-top:16rpx; flex-direction:row; align-items:center; justify-content:space-between; }.review .fiber-field input { width:30%; }
+.review .wizard-actions { margin-top:auto; padding-top:20rpx; }.review .error { padding:16rpx; margin:12rpx 0 0; font-size:24rpx; }
+@media(max-height:620px){.review .card { padding:16rpx 20rpx; margin-top:12rpx; }.review .app-top { margin-bottom:8rpx; }.review .onboarding-progress { margin-bottom:12rpx; }.review .wizard-actions { padding-top:12rpx; }.estimate-note { margin-top:8rpx; }}

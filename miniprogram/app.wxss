@@ -1,0 +1,57 @@
+page { height:100%; background:#f9faf5; color:#353535; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:30rpx; }
+view,button,input,textarea { box-sizing:border-box; }
+button { display:flex; align-items:center; justify-content:center; width:100%; margin:0; min-height:48px; padding:24rpx 30rpx; border-radius:999rpx; color:#353535; background:#f1f2e8; font-size:30rpx; line-height:1.35; font-weight:600; }
+button::after { border:none; }
+button[disabled] { color:#888d80; background:#edf0e1; }
+button.primary { background:#353535; color:#fff; }
+button.secondary { background:#fff; color:#353535; border:1px solid #e5e7dd; }
+button.lime { background:#d8eb83; color:#353535; }
+button.text-button { width:auto; background:transparent; color:#596529; padding:12rpx 0; font-size:26rpx; }
+.app-page { min-height:100%; background:linear-gradient(180deg,#fbfcf8 0%,#f3f7e4 60%,#faedd9 100%); }
+.page-body { max-width:540px; margin:0 auto; padding:32rpx 40rpx calc(56rpx + env(safe-area-inset-bottom)); }
+.app-top { display:flex; align-items:center; justify-content:space-between; gap:20rpx; margin-bottom:40rpx; }
+.wordmark { font-size:28rpx; letter-spacing:2rpx; font-weight:750; }
+.round-button { width:48px; min-height:48px; padding:0; flex:none; border-radius:50%; background:#fff; font-size:34rpx; }
+.eyebrow { display:block; font-size:22rpx; letter-spacing:2rpx; color:#656b5f; margin-bottom:16rpx; }
+.title { display:block; font-size:60rpx; font-weight:750; line-height:1.12; letter-spacing:-2rpx; }
+.subtitle { display:block; font-size:26rpx; line-height:1.6; color:#656b5f; margin-top:20rpx; }
+.card { background:#fff; border-radius:48rpx; padding:32rpx; margin:24rpx 0; }
+.card-heading { display:flex; align-items:center; justify-content:space-between; gap:16rpx; margin-bottom:28rpx; font-size:28rpx; font-weight:650; }
+.muted { display:block; font-size:24rpx; color:#656b5f; line-height:1.6; }
+.field { display:flex; flex-direction:column; gap:12rpx; color:#656b5f; font-size:24rpx; margin-bottom:24rpx; min-width:0; }
+.field input,.field textarea,.picker-value { width:100%; background:#f7f7fa; border-radius:24rpx; min-height:48px; padding:24rpx; color:#353535; font-size:30rpx; }
+.field textarea { height:160rpx; }
+.field input { height:96rpx; }
+.form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 20rpx; }
+.actions { display:flex; gap:16rpx; margin-top:24rpx; }.actions > button { flex:1; min-width:0; }
+.error { padding:24rpx; margin:24rpx 0; color:#ac3936; background:#fff0eb; border-radius:24rpx; font-size:26rpx; line-height:1.5; }
+.feedback { padding:24rpx; margin:24rpx 0; color:#526422; background:#edf4d4; border-radius:24rpx; font-size:26rpx; line-height:1.5; }
+.preview-label { background:#edf4d4; border-radius:20rpx; padding:16rpx 24rpx; margin-bottom:24rpx; font-size:22rpx; color:#637326; }
+.big-number { font-size:88rpx; line-height:1; font-weight:750; letter-spacing:-4rpx; font-variant-numeric:tabular-nums; }.number-unit { font-size:24rpx; margin-left:10rpx; letter-spacing:0; font-weight:500; }
+.progress { height:12rpx; border-radius:99rpx; background:#f1f0f5; overflow:hidden; }.progress > view { height:100%; background:#b7de00; border-radius:99rpx; }
+.nutrients { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24rpx; margin-top:28rpx; }.nutrient .progress { margin:10rpx 0; height:10rpx; }.nutrient .carbs { background:#fed563; }.nutrient .protein { background:#f68979; }.nutrient .fat { background:#ff8f32; }.nutrient .fiber { background:#b7de00; }.nutrient .muted { font-size:22rpx; }.nutrient-value { font-size:24rpx; font-weight:600; }
+.row { display:flex; align-items:center; justify-content:space-between; gap:20rpx; }.line { border-bottom:1px solid #f0f0f2; padding:24rpx 0; }.line:last-child { border:0; }
+.meal-row { display:flex; gap:20rpx; width:100%; border-radius:0; background:transparent; padding:24rpx 0; text-align:left; justify-content:flex-start; border-bottom:1px solid #f0f0f2; }.meal-row:last-child { border:0; }.meal-photo { width:92rpx; height:92rpx; flex:none; border-radius:50%; background:#f7f7fa; }.meal-info { flex:1; min-width:0; }.meal-name { display:block; font-size:28rpx; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }.meal-meta { display:block; font-size:22rpx; color:#656b5f; margin:8rpx 0; }.meal-kcal { font-size:36rpx; font-weight:700; letter-spacing:-1rpx; }.chevron { flex:none; color:#969c88; font-size:36rpx; }
+.empty { text-align:center; padding:32rpx 0; }.empty text { display:block; }.empty .muted { margin-top:12rpx; }
+@media (max-width:350px){.page-body { padding-left:28rpx; padding-right:28rpx; }.title { font-size:52rpx; }.big-number { font-size:76rpx; }.card { padding:28rpx; }}
+
+.ui-icon { width:24px; height:24px; flex:none; display:block; }.primary .ui-icon,.secondary .ui-icon,.text-button .ui-icon,.danger-button .ui-icon { margin-right:12rpx; }.round-button .ui-icon { margin:0; }button.button-hover { opacity:.72; }.title { font-size:52rpx; letter-spacing:-1.5rpx; }.card { border-radius:40rpx; }.card-heading { margin-bottom:24rpx; }.app-top { margin-bottom:28rpx; }
+
+.app-page.theme-3 { background:linear-gradient(180deg,#fff 0%,#f6faec 42%,#ddebab 100%); }.app-page.theme-0 { background:linear-gradient(180deg,#fff 0%,#fffbee 42%,#f8e3a6 100%); }.app-page.theme-1 { background:linear-gradient(180deg,#fff 0%,#faf3ed 42%,#e5c5b0 100%); }.app-page.theme-2 { background:linear-gradient(180deg,#fff 0%,#fff5e9 42%,#f7d1a6 100%); }
+
+/* Native page scrolling is disabled; scroll-surface owns every vertical scroll. */
+.app-page { height:100%; overflow:hidden; }.page-body { padding-right:48rpx; }
+::-webkit-scrollbar { width:0; height:0; display:none; }
+
+/* One shared brand lockup across the app. */
+.brand-lockup { display:inline-flex; align-items:center; gap:12rpx; flex-shrink:0; white-space:nowrap; }
+.brand-logo { width:40rpx; height:40rpx; flex:none; }
+.add-device-hint { position:relative; }
+.add-device-orbit { position:absolute; top:50%; left:50%; width:32px; height:32px; margin:-16px 0 0 -16px; pointer-events:none; animation:add-device-orbit 4.8s infinite; }
+.add-device-orbit.is-paused { animation-play-state:paused; }
+@keyframes add-device-orbit {
+  0% { transform:rotate(0deg); animation-timing-function:cubic-bezier(.4,0,.6,1); }
+  25% { transform:rotate(360deg); animation-timing-function:cubic-bezier(.4,0,.6,1); }
+  100% { transform:rotate(720deg); }
+}
+@media (prefers-reduced-motion:reduce) { .add-device-orbit { animation:none; } }

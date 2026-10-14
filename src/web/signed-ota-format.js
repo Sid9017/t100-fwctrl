@@ -25,18 +25,19 @@ export function parseManifest(bytes) {
 export function signedMetadataMatches(m, parsed) {
   return ['size','version','signingKeyId','releaseCounter','sha256','manifestSize','protocolVersion'].every(k=>m[k]===parsed[k]);
 }
-export async function validateSignedOad(bytes, manifest, metadata, {publicKeyHex=OTA_PUBLIC_KEY_HEX,keyId=OTA_KEY_ID}={}) {
+export async function validateSignedOad(bytes, manifest, metadata, {publicKeyHex=OTA_PUBLIC_KEY_HEX,keyId=OTA_KEY_ID,subtle=globalThis.crypto?.subtle}={}) {
   const parsed=parseManifest(manifest);
   if(parsed.signingKeyId!==keyId)fail('Untrusted firmware signing key');
   validateOad(bytes,parsed);
   if(new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getUint16(14,true)!==0x1235)fail('OAD ROM does not match the manifest');
-  const sha256=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)));
-  const manifestSha256=hex(new Uint8Array(await crypto.subtle.digest('SHA-256',manifest)));
+  if(!subtle)fail('Signature verification is unavailable');
+  const sha256=hex(new Uint8Array(await subtle.digest('SHA-256',bytes)));
+  const manifestSha256=hex(new Uint8Array(await subtle.digest('SHA-256',manifest)));
   if(sha256!==parsed.sha256)fail('Firmware SHA256 verification failed');
   if(metadata && (metadata.schemaVersion!==2 || !signedMetadataMatches(metadata,parsed) || metadata.manifestSha256!==manifestSha256))fail('Signed OAD metadata mismatch');
   if(!/^04[0-9a-f]{128}$/.test(publicKeyHex))fail('Invalid trusted publishing public key');
   const raw=Uint8Array.from(publicKeyHex.match(/../g).map(s=>parseInt(s,16)));
-  const key=await crypto.subtle.importKey('raw',raw,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
-  if(!await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},key,manifest.subarray(64),manifest.subarray(0,64)))fail('Firmware signature verification failed');
+  const key=await subtle.importKey('raw',raw,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);
+  if(!await subtle.verify({name:'ECDSA',hash:'SHA-256'},key,manifest.subarray(64),manifest.subarray(0,64)))fail('Firmware signature verification failed');
   return {...parsed,manifestSha256};
 }

@@ -1,0 +1,5 @@
+{
+  "source": "rive-wasm source build",
+  "build": "lite (no text/audio/layout/scripting) + emmalloc",
+  "renderer": "tools/rive-build/renderer.weapp.js (WeChat-native canvas2d)"
+}

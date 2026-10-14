@@ -1,0 +1,5 @@
+<view class="device" aria-label="KCALACK scale, drawn in a single ink color">
+  <canvas type="2d" id="body" class="chassis"></canvas>
+  <view wx:if="{{connected}}" class="light-bar"><view class="led left" style="opacity:{{left}}"></view><canvas type="2d" id="panel" class="panel"></canvas><view class="led right" style="opacity:{{right}}"></view></view>
+</view>
+<view wx:if="{{connected && message}}" class="message">{{message}}</view>
