@@ -45,20 +45,11 @@ test('cancel and failed autosave retain the saved photo until deletion can be pe
 test('preview photos never write or delete real photo files',async()=>{
  const f=await setup({preview:true});await f.page.choosePhoto();f.page.onUnload();assert.equal(f.saved.length,0);assert.equal(f.removed.length,0);
 });
-test('wheel rotation snaps only on release; short, radial, cancelled and multitouch gestures keep the meal',async()=>{
- const {page}=await setup({hour:12});
- const point=degrees=>({clientX:150+100*Math.cos(degrees*Math.PI/180),clientY:150+100*Math.sin(degrees*Math.PI/180)});
- const start=degrees=>page.skyTouchStart({touches:[point(degrees)]});
- const end=degrees=>page.skyTouchEnd({changedTouches:[point(degrees)]});
- start(-90);page.skyTouchMove({touches:[point(-30)]});assert.equal(page.data.form.meal,'Lunch');end(0);assert.equal(page.data.form.meal,'Dinner');
- start(-90);end(-80);assert.equal(page.data.form.meal,'Dinner');
- start(0);page.skyTouchEnd({changedTouches:[{clientX:280,clientY:150}]});assert.equal(page.data.form.meal,'Dinner');
- start(0);page.skyTouchCancel();end(90);assert.equal(page.data.form.meal,'Dinner');
- start(0);end(90);assert.equal(page.data.form.meal,'Snack');
- start(170);end(-160);assert.equal(page.data.form.meal,'Breakfast');
- start(-160);end(170);assert.equal(page.data.form.meal,'Snack');
- start(0);page.skyTouchMove({touches:[{},{}]});end(90);assert.equal(page.data.form.meal,'Snack');
- start(0);page.skyTouchMove({touches:[{clientX:150,clientY:150}]});end(90);assert.equal(page.data.form.meal,'Snack');page.onUnload();
+test('title clicks cycle through every meal and restore only its own photos',async()=>{
+ const {page}=await setup({hour:8});await page.choosePhoto();const breakfastPhoto=page.data.form.photos[0];
+ for(const meal of ['Lunch','Dinner','Snack']){page.nextMeal();assert.equal(page.data.form.meal,meal);assert.equal(page.data.form.photos.length,0);}
+ page.nextMeal();assert.equal(page.data.form.meal,'Breakfast');assert.equal(page.data.form.photos[0],breakfastPhoto);
+ page.onUnload();
 });
 
 test('repeated camera taps open only one picker; errors unlock the next attempt',async()=>{
@@ -81,7 +72,7 @@ test('photo selection pauses rotation and animated deletion keeps the selected p
  await f.page.persistMeal();assert.equal(f.page.data.summary,false);
  await new Promise(resolve=>setTimeout(resolve,240));
  assert.equal(f.page.data.deletingPhotoIndex,-1);assert.equal(f.page.data.selectedPhotoIndex,0);assert.equal(f.page.data.form.photos[0],photos[1]);
- f.page.skyTouchStart({touches:[{clientX:150,clientY:50}]});f.page.skyTouchEnd({changedTouches:[{clientX:150,clientY:50}]});assert.equal(f.page.data.photoEditing,false);
+ f.page.nextMeal();assert.equal(f.page.data.photoEditing,false);
  f.page.onUnload();
 });
 
@@ -102,9 +93,9 @@ test('photos and fields autosave separately for each meal and restore after reop
 test('meal switching is locked during capture and deletion, and leaving completes deletion',async()=>{
  const f=await setup({hour:8});let capture;
  f.api.chooseMedia=o=>capture=o;const pending=f.page.choosePhoto();
- f.page.selectMeal({currentTarget:{dataset:{meal:'Snack'}}});assert.equal(f.page.data.form.meal,'Breakfast');
+ f.page.nextMeal();assert.equal(f.page.data.form.meal,'Breakfast');
  capture.success({tempFiles:[{tempFilePath:'/temp/food.jpg'}]});await pending;
- f.page.removePhoto({currentTarget:{dataset:{index:0}}});f.page.selectMeal({currentTarget:{dataset:{meal:'Snack'}}});assert.equal(f.page.data.form.meal,'Breakfast');
+ f.page.removePhoto({currentTarget:{dataset:{index:0}}});f.page.nextMeal();assert.equal(f.page.data.form.meal,'Breakfast');
  f.page.onUnload();assert.equal(f.journal.data.records[0].photos.length,0);assert.equal(new Set(f.removed).size,1);
 });
 test('incomplete calories stay unknown and cannot be sent to the device',async()=>{

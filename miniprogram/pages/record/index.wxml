@@ -1,8 +1,8 @@
 <view class="app-page theme-{{themeProfile}}"><scroll-surface refresh-key="{{summary+':'+detailsOpen+':'+form.photos.length+':'+error+':'+feedback}}"><view class="page-body {{summary ? 'has-footer' : ''}}">
   <block wx:if="{{!summary}}">
-    <view class="meal-heading" aria-live="polite" aria-label="{{form.meal}}"><text wx:for="{{meals}}" wx:key="*this" class="title meal-title {{item === form.meal ? 'is-active' : ''}}" aria-hidden="{{item !== form.meal}}">{{item}}</text></view>
+    <button class="meal-heading" bindtap="nextMeal" disabled="{{loading || deletingPhotoIndex >= 0 || !form.id}}" aria-live="polite" aria-label="{{form.meal+', switch to '+meals[(mealIndex+1)%4]}}"><text wx:for="{{meals}}" wx:key="*this" class="title meal-title {{item === form.meal ? 'is-active' : ''}}" aria-hidden="{{item !== form.meal}}">{{item}}</text></button>
 
-    <view class="photo-wheel {{loading || orbitPaused || photoEditing || deletingPhotoIndex >= 0 || !visible ? 'is-paused' : ''}}" bindtouchstart="skyTouchStart" catchtouchmove="skyTouchMove" bindtouchend="skyTouchEnd" bindtouchcancel="skyTouchCancel">
+    <view class="photo-wheel {{loading || orbitPaused || photoEditing || deletingPhotoIndex >= 0 || !visible ? 'is-paused' : ''}}">
       <view class="wheel-sky">
         <image wx:if="{{!skyReady}}" class="sky-fallback" src="/assets/meals/sky-{{mealIndex}}.svg" aria-hidden="true"/>
         <meal-sky class="sky-animation" bindready="skyLoaded" bindunavailable="skyUnavailable" meal="{{mealIndex}}" active="{{visible && !summary}}"/>

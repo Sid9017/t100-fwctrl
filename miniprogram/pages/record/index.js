@@ -42,54 +42,16 @@ Page({
       return true;
     }catch(e){this.setData({detailsOpen:true,saved:false,error:errorText(e)});return false;}
   },
-  onShow(){this.setData({visible:true});},onHide(){this.finishPhotoRemoval?.();this.persistMeal();this.skyGesture=null;this.setData({visible:false});},
+  onShow(){this.setData({visible:true});},onHide(){this.finishPhotoRemoval?.();this.persistMeal();this.setData({visible:false});},
   cleanupPhotos(paths){if(this.preview)return;for(const path of paths)if(path.startsWith(wx.env.USER_DATA_PATH+'/kcalack-photo-')&&!this.journal.data.records.some(r=>r.photos.includes(path))&&!(Object.values(this.mealForms||{}).some(form=>form.photos.includes(path))))wx.getFileSystemManager().unlink({filePath:path,fail:()=>{}});},
-  onUnload(){this.finishPhotoRemoval?.();this.persistMeal();this.unloaded=true;this.skyGesture=null;clearTimeout(this.orbitTimer);clearTimeout(this.photoDeleteTimer);this.unsubscribe?.();this.cleanupPhotos(this.newPhotos||[]);},
+  onUnload(){this.finishPhotoRemoval?.();this.persistMeal();this.unloaded=true;clearTimeout(this.orbitTimer);clearTimeout(this.photoDeleteTimer);this.unsubscribe?.();this.cleanupPhotos(this.newPhotos||[]);},
   pauseOrbit(){clearTimeout(this.orbitTimer);this.setData({orbitPaused:true});},
   resumeOrbit(){clearTimeout(this.orbitTimer);this.orbitTimer=setTimeout(()=>{if(!this.unloaded)this.setData({orbitPaused:false});},400);},
   toggleDetails(){this.setData({detailsOpen:!this.data.detailsOpen});},
-  selectMeal(e){const meal=e.currentTarget.dataset.meal;if(this.data.loading||this.data.deletingPhotoIndex>=0||!this.mealForms?.[meal]||meal===this.data.form.meal)return;if(this.persistMeal())this.showMeal(meal);},
+  selectMeal(e){const meal=e.currentTarget.dataset.meal;if(this.data.loading||this.data.deletingPhotoIndex>=0||!this.mealForms?.[meal]||meal===this.data.form.meal)return;if(this.persistMeal()){this.showMeal(meal);this.resumeOrbit();}},
+  nextMeal(){this.selectMeal({currentTarget:{dataset:{meal:MEALS[(this.data.mealIndex+1)%MEALS.length]}}});},
   skyLoaded(){this.setData({skyReady:true});},
   skyUnavailable(){this.setData({skyReady:false});},
-  skyTouchStart(e){
-    this.skyGesture=null;
-    this.setData({photoEditing:false});
-    if(e.touches?.length!==1)return;
-    const gesture=this.skyGesture={points:[e.touches[0]],ended:false};
-    this.pauseOrbit();
-    this.createSelectorQuery().select('.photo-wheel').boundingClientRect(box=>{
-      if(this.skyGesture!==gesture||!box)return;
-      gesture.center={x:box.left+box.width/2,y:box.top+box.height/2};
-      if(gesture.ended)this.finishSkyGesture();
-    }).exec();
-  },
-  skyTouchMove(e){
-    if(e.touches?.length!==1){this.skyTouchCancel();return;}
-    if(this.skyGesture)this.skyGesture.points.push(e.touches[0]);
-  },
-  skyTouchEnd(e){
-    if(!this.skyGesture)return;
-    if(e.changedTouches?.[0])this.skyGesture.points.push(e.changedTouches[0]);
-    this.skyGesture.ended=true;this.resumeOrbit();this.finishSkyGesture();
-  },
-  finishSkyGesture(){
-    const gesture=this.skyGesture;
-    if(!gesture?.center||!gesture.ended)return;
-    this.skyGesture=null;
-    let angle=0,previous=null;
-    for(const point of gesture.points){
-      const x=point.clientX-gesture.center.x,y=point.clientY-gesture.center.y;
-      // Crossing the camera's central dead zone is not a wheel rotation.
-      if(Math.hypot(x,y)<36)return;
-      const current=Math.atan2(y,x);
-      if(previous!==null){let delta=current-previous;if(delta>Math.PI)delta-=Math.PI*2;if(delta< -Math.PI)delta+=Math.PI*2;angle+=delta;}
-      previous=current;
-    }
-    if(Math.abs(angle)<Math.PI/8)return;
-    const index=(this.data.mealIndex+(angle>0?1:-1)+4)%4;
-    this.selectMeal({currentTarget:{dataset:{meal:MEALS[index]}}});
-  },
-  skyTouchCancel(){this.skyGesture=null;this.resumeOrbit();},
   field(e){this.setData({['form.'+e.currentTarget.dataset.field]:e.detail.value,saved:false,error:''});this.persistMeal();},
   rating(e){this.setData({'form.rating':Number(e.currentTarget.dataset.value),saved:false});this.persistMeal();},
   async choosePhoto(){
@@ -112,12 +74,12 @@ Page({
   selectPhoto(e){
     const index=Number(e.currentTarget.dataset.index);
     if(this.data.deletingPhotoIndex>=0||!this.data.form.photos[index])return;
-    this.skyGesture=null;this.setData({selectedPhotoIndex:index,photoEditing:true,detailsOpen:true});this.pauseOrbit();
+    this.setData({selectedPhotoIndex:index,photoEditing:true,detailsOpen:true});this.pauseOrbit();
   },
   removePhoto(e){
     const index=Number(e.currentTarget.dataset.index);
     if(this.data.loading||this.data.deletingPhotoIndex>=0||!this.data.form.photos[index])return;
-    this.skyGesture=null;this.setData({deletingPhotoIndex:index,photoEditing:true});
+    this.setData({deletingPhotoIndex:index,photoEditing:true});
     this.finishPhotoRemoval=()=>{
       clearTimeout(this.photoDeleteTimer);this.finishPhotoRemoval=null;
       if(this.unloaded)return;
