@@ -250,6 +250,7 @@ class RiveInstance {
     this._artboard.draw(r);
     r.restore();
     rive.resolveAnimationFrame();
+    if (this._playing && dt > 0) this._opts.onFrame?.(dt);
   }
 
   _drawOnce() {

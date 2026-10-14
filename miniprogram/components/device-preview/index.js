@@ -1,6 +1,7 @@
 const {MiniRuntime}=require('../../lib/t100');
 Component({
-  properties:{connected:Boolean,status:Object,reading:Object,commits:Array,active:{type:Boolean,value:true}},
+  options:{virtualHost:true},
+  properties:{fadeMs:{type:Number,value:0},displayOnly:Boolean,connected:Boolean,status:Object,reading:Object,commits:Array,active:{type:Boolean,value:true}},
   data:{left:0,right:0,message:''},
   observers:{'commits':function(){for(const data of this.properties.commits||[])this.runtime?.commit(data);},'status,reading':function(){this.runtime?.sync(this.properties.status,this.properties.reading);this.start();},'connected':function(){if(this.mounted)this.setup();},'active':function(){this.start();}},
   lifetimes:{ready(){this.mounted=true;this.setup();},detached(){this.mounted=false;this.stop();}},
@@ -13,10 +14,10 @@ Component({
       const query=this.createSelectorQuery();
       const nodes=await new Promise(resolve=>query.select('#body').fields({node:true,size:true}).select('#panel').fields({node:true,size:true}).exec(resolve));
       if(!this.mounted || generation!==this.generation)return;
-      const body=nodes[0];if(!body?.node)return;
-      this.drawBody(body.node,body.width,body.height);
+      const body=nodes[0];if(!body?.node&&!this.properties.displayOnly)return;
+      if(body?.node)this.drawBody(body.node,body.width,body.height);
       if(!this.properties.connected || !nodes[1]?.node){this.runtime=null;return;}
-      this.panel=nodes[1].node;this.panel.width=320;this.panel.height=80;this.context=this.panel.getContext('2d');
+      this.fadeStarted=Date.now();this.panel=nodes[1].node;this.panel.width=320;this.panel.height=80;this.context=this.panel.getContext('2d');
       try{
         if(!this.runtime){
           const result=await WXWebAssembly.instantiate('/lib/preview.wasm',{});
@@ -31,7 +32,7 @@ Component({
       if(!this.mounted||this.hidden||!this.runtime||!this.properties.active||!this.properties.connected||!this.properties.status){this.stop();return;}
       if(this.timer)return;
       const paint=()=>{
-        const f=this.runtime.frame();const image=this.context.createImageData(320,80);image.data.set(f.rgba);this.context.putImageData(image,0,0);
+        const f=this.runtime.frame();const image=this.context.createImageData(320,80);image.data.set(f.rgba);const alpha=this.properties.fadeMs?Math.min(1,(Date.now()-this.fadeStarted)/this.properties.fadeMs):1;if(alpha<1)for(let i=3;i<image.data.length;i+=4)image.data[i]=Math.round(image.data[i]*alpha);this.context.putImageData(image,0,0);
         if(this.data.left!==f.left||this.data.right!==f.right||this.data.message!==f.missing)this.setData({left:f.left,right:f.right,message:f.missing});
       };
       paint();this.timer=setInterval(paint,40);

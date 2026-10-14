@@ -2,13 +2,21 @@ const {dayKey}=require('../../lib/t100');
 const {route,errorText,recordRows,ensurePlan,isPreview,store}=require('../../utils/page');
 const {currentTheme}=require('../../utils/page');
 Page({
-  data:{pageVisible:false,hasDevice:false,deviceName:'',themeProfile:3,showDeviceSetup:false,addBusy:false,date:dayKey(),today:dayKey(),profile:null,summary:null,records:[],connected:false,isDevtools:false,preview:false,error:'',loading:false},
-  onLoad(options={}){this.preview=isPreview(options);this.previewNoDevice=this.preview&&options.device==='none';this.journal=store(this.preview);this.setData({preview:this.preview,isDevtools:!!getApp().isDevtools});},
-  onShow(){if(!ensurePlan(this.preview))return;this.setData({pageVisible:true,date:dayKey(),today:dayKey()});this.refresh();this.unsubscribe?.();const service=this.preview?getApp().getPreviewService():getApp().service;if(service)this.unsubscribe=service.onChange(s=>this.setData({addBusy:!!(s.busy||s.connecting),connected:!this.previewNoDevice&&s.connected,hasDevice:!this.previewNoDevice&&(!!s.knownDevices?.length||!!s.connected),deviceName:s.device?.name||s.knownDevices?.[0]?.name||'',themeProfile:currentTheme(s)}));},
-  onHide(){this.setData({pageVisible:false});this.unsubscribe?.();},onUnload(){this.unsubscribe?.();},
+  data:{pageVisible:false,playIntro:false,liveReady:false,liveSettled:false,liveLayout:0,hasDevice:false,connecting:false,deviceName:'',themeProfile:3,showDeviceSetup:false,addBusy:false,date:dayKey(),today:dayKey(),profile:null,summary:null,records:[],connected:false,isDevtools:false,preview:false,error:'',loading:false},
+  onLoad(options={}){this.forceIntro=options.intro==='1';this.preview=isPreview(options);this.previewNoDevice=this.preview&&options.device==='none';this.journal=store(this.preview);this.setData({preview:this.preview,isDevtools:!!getApp().isDevtools});},
+  onShow(){if(!ensurePlan(this.preview))return;if(!this.preview)getApp().autoConnect?.show();this.setData({pageVisible:true,date:dayKey(),today:dayKey()});this.refresh();this.unsubscribe?.();const service=this.preview?getApp().getPreviewService():getApp().service;if(service)this.unsubscribe=service.onChange(s=>{
+    const connected=!this.previewNoDevice&&s.connected;
+    const playIntro=!!connected&&!this.data.connected&&(this.forceIntro||this.seenConnection===false);
+    if(playIntro)this.forceIntro=false;
+    this.seenConnection=!!connected;
+    this.setData({addBusy:!!(s.busy||s.connecting),connecting:!!s.connecting,connected,...(!connected?{liveReady:false,liveSettled:false}:{}),playIntro:connected?(this.data.connected?this.data.playIntro:playIntro):false,hasDevice:!this.previewNoDevice&&(!!s.knownDevices?.length||!!s.connected),deviceName:s.device?.name||s.knownDevices?.[0]?.name||'',themeProfile:currentTheme(s)});
+  });},
+  onHide(){this.setData({pageVisible:false});this.unsubscribe?.();},onUnload(){this.unsubscribe?.();clearTimeout(this.revealTimer);},
   refresh(){const journal=this.journal;const summary=journal.summary(this.data.date);this.setData({profile:journal.data.profile,summary,records:recordRows(summary.records),error:journal.error});},
-  openProfile(){route('profile',this.preview);},openReports(){route('reports',this.preview,'date='+this.data.date);},openDevices(){if(!this.data.hasDevice){this.openAddDevice();return;}route(this.data.connected?'device':'devices',this.preview);},
+  openProfile(){route('profile',this.preview);},openReports(){route('reports',this.preview,'date='+this.data.date);},
   openAddDevice(){if(this.data.hasDevice||this.data.addBusy)return;this.setData({showDeviceSetup:true,error:''});},closeDeviceSetup(e){this.setData({showDeviceSetup:false,...(e.detail.error?{error:e.detail.error}:{})});},
+  liveLoaded(){clearTimeout(this.revealTimer);this.setData({liveReady:true,liveSettled:!this.data.playIntro});if(this.data.playIntro)this.revealTimer=setTimeout(()=>this.setData({liveSettled:true,liveLayout:this.data.liveLayout+1}),680);},
+  liveLayoutChanged(){this.setData({liveLayout:this.data.liveLayout+1});},
   newMeal(){route('record',this.preview);},editMeal(e){route('record',this.preview,'id='+e.currentTarget.dataset.id);},
   async syncPlan(){if(this.data.loading)return;this.setData({loading:true,error:''});try{if(!this.data.profile)throw new Error('Create a personal plan first.');const service=this.preview?getApp().getPreviewService():getApp().service,journal=this.journal;if(!service?.state.connected)throw new Error('Connect your device to sync today’s plan.');for(const deletion of journal.data.deletions||[])if(deletion.deviceId===service.state.device.id){await service.invoke('deleteKcalHist',{uuid:deletion.id});journal.clearDeletion(deletion.id,deletion.deviceId);}const s=journal.summary();await service.invoke('scaleUpdateKcal',{currentKcal:s.remaining,targetKcal:s.target,tdeeKcal:s.tdee});wx.showToast({title:'Plan synced',icon:'success'});}catch(e){this.setData({error:errorText(e)});}finally{this.setData({loading:false});}}
 });

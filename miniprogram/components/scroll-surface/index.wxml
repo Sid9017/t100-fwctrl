@@ -1,5 +1,5 @@
 <view class="surface">
-  <scroll-view id="viewport" class="viewport" scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}" bindscroll="onScroll">
+  <scroll-view id="viewport" class="viewport" scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}" scroll-with-animation="{{animateScroll}}" bindscroll="onScroll" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd">
     <view id="content" class="content" style="min-height:{{viewportHeight}}px"><slot/></view>
   </scroll-view>
   <view class="scroll-rail" wx:if="{{overflow}}" aria-hidden="true">

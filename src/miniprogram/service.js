@@ -72,7 +72,7 @@ export class MiniService {
       const connection=await this.adapter.connect(device);this.connection=connection;
       this.actions.connection=connection;this.actions.entry={device,ui:{id:device.id,name:device.name,bindState:'unknown',scaleReading:null,deviceStatus:null}};
 
-      connection.native.on('disconnect',()=>{if(this.connection===connection){this.flushWeighingState();this.connection=null;this.actions.connection=null;this.actions.entry=null;if(this.actions.abortRef)this.actions.abortRef.aborted=true;this.firmwareGeneration++;this.firmwareBundle=null;this.update({connected:false,device:null,mtu:null,reading:null,status:null,battery:null,firmware:'--',nearbyDevices:[],devices:[],scanComplete:false,hasAuth:false,containerState:null,containerPending:null,previewCommits:[],firmwareInfo:null,firmwareLoading:false,error:['bindDevice','resetDevice','factoryDevice','downloadOad'].includes(this.state.actionName)?'':'Device disconnected. Select it to reconnect.'});}});
+      connection.native.on('disconnect',()=>{if(this.connection===connection){this.flushWeighingState();this.connection=null;this.actions.connection=null;this.actions.entry=null;if(this.actions.abortRef)this.actions.abortRef.aborted=true;this.firmwareGeneration++;this.firmwareBundle=null;this.update({connected:false,device:null,mtu:null,reading:null,status:null,battery:null,firmware:'--',nearbyDevices:[],devices:[],scanComplete:false,hasAuth:false,containerState:null,containerPending:null,previewCommits:[],firmwareInfo:null,firmwareLoading:false,error:['bindDevice','resetDevice','factoryDevice','downloadOad'].includes(this.state.actionName)?'':'Device disconnected. Waiting to reconnect.'});}});
       const services=await this.adapter.discoverServices(connection);
       if(!services.some(s=>canonicalUuid(s.uuid)==='fee0'))throw new Error('This device does not expose the T100 service');
       this.actions.entry.ui.bindState=services.some(row=>row.uuid.replaceAll('-','').toLowerCase()==='6b300001ef004a5b8dc12e9fcdef0001')?'unbind':'unknown';
@@ -91,7 +91,7 @@ export class MiniService {
       }
       if(!connection.active)throw new Error('Device disconnected during setup');
       let knownDevices=this.state.knownDevices;
-      try{knownDevices=this.deviceStore.remember(device);}catch{warnings.push('Connected, but your device could not be saved.');}
+      try{knownDevices=this.deviceStore.remember({...device,firmware});}catch{warnings.push('Connected, but your device could not be saved.');}
       this.actions.entry.ui.firmware=firmware||'--';this.update({connected:true,knownDevices,device:{id:device.id,name:device.name},mtu:connection.mtu,firmware:firmware||'--',warnings});this.flushWeighingState();this.updateAuth();this.log(`Connected ${device.name}`);void this.loadLatestFirmware();
     }catch(error){await this.disconnect();this.update({error:error.message});throw error;}
     finally{this.connecting=false;this.update({connecting:false,connectingDeviceId:null});}
@@ -135,7 +135,7 @@ export class MiniService {
   async exportAuth(){const path=this.api.env.USER_DATA_PATH+'/t100-auth-backup.json';await wxCall(this.api.getFileSystemManager(),'writeFile',{filePath:path,data:JSON.stringify(this.auth.records(),null,2),encoding:'utf8'});return path;}
   async loadLatestFirmware(){
     if(this.state.busy)return;const generation=++this.firmwareGeneration;this.update({firmwareLoading:true,firmwareError:''});
-    try{const bundle=await latestMiniFirmware(this.api);if(generation!==this.firmwareGeneration)return;this.firmwareBundle=bundle;this.update({firmwareInfo:bundle.metadata,oadProgress:0});}
+    try{const bundle=await latestMiniFirmware(this.api);if(generation!==this.firmwareGeneration)return;this.firmwareBundle=bundle;this.update({firmwareSource:'published',firmwareInfo:bundle.metadata,oadProgress:0});}
     catch(error){if(generation===this.firmwareGeneration)this.update({firmwareError:error.message});}
     finally{if(generation===this.firmwareGeneration)this.update({firmwareLoading:false});}
   }
@@ -146,7 +146,7 @@ export class MiniService {
     if(files.length!==2||!bin||!sidecar)throw new Error('Choose a signed BIN and its matching manifest');
     const bytes=await readLocalFile(this.api,bin.path,{max:245760}),manifest=await readLocalFile(this.api,sidecar.path,{max:128});
     const metadata=await validateSignedOad(bytes,manifest,undefined,{subtle:miniSubtle});if(generation!==this.firmwareGeneration)return;
-    this.firmwareBundle={metadata,file:byteFile('T100_OAD.bin',bytes),manifest:byteFile('T100_OAD.manifest',manifest)};this.update({firmwareInfo:metadata,oadProgress:0});
+    this.firmwareBundle={metadata,file:byteFile('T100_OAD.bin',bytes),manifest:byteFile('T100_OAD.manifest',manifest)};this.update({firmwareSource:'local',firmwareInfo:metadata,oadProgress:0});
   }
   async startOad(){
     if(!this.firmwareBundle)throw new Error('Choose signed firmware first');if(!oadVersion(this.state.firmware))throw new Error('Refresh the device firmware version before upgrading');

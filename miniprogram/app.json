@@ -3,7 +3,6 @@
     "pages/index/index",
     "pages/plan/index",
     "pages/devices/index",
-    "pages/device/index",
     "pages/firmware/index",
     "pages/record/index",
     "pages/reports/index",

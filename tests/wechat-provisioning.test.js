@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {readFile} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {decodeProvisioningBarcode,nativeProduct} from '../src/miniprogram/provisioning.js';
 import {KnownDeviceStore} from '../src/miniprogram/device-store.js';
@@ -27,4 +28,10 @@ test('native BLE scan rejects a peer product despite its YD name',async()=>{
 });
 test('last confirmed weighing mode survives restart and can update without a BLE write',()=>{
  const cache=new Map(),api={getStorageSync:k=>cache.get(k),setStorageSync:(k,v)=>cache.set(k,v)},store=new KnownDeviceStore(api);store.remember({id:'A',name:'YD-03148c52fb00'},1);store.saveWeighing({profile:0,unit:1,stage:0,valueText:'3.53',updatedAt:2});const restored=new KnownDeviceStore(api);assert.equal(restored.list()[0].lastWeighing.profile,0);assert.equal(viewModel({knownDevices:restored.list(),battery:null,mtu:null}).profile,0);store.remove();assert.equal(store.list().length,0);
+});
+
+test('real device photo Code128 payload resolves to its displayed Bluetooth identity',async()=>{
+ const fixture=JSON.parse(await readFile(new URL('./fixtures/provisioning/kcalack-device-barcode.json',import.meta.url),'utf8'));
+ assert.equal(fixture.format,'Code 128');
+ assert.deepEqual(decodeProvisioningBarcode(fixture.payload),{schema:fixture.schema,name:fixture.name,shellId:fixture.shellId});
 });

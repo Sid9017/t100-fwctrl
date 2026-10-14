@@ -26,6 +26,7 @@ export function viewModel(state) {
   const bound=status?!!(status.flags&1):false;
   const sameFirmware=!!state.firmwareInfo&&oadVersion(state.firmware)===state.firmwareInfo.version;
   return {...state,profile,bound,canControl:!!(state.connected&&bound&&state.hasAuth&&!state.busy&&!state.connecting),sameFirmware,canOad:!!(state.connected&&bound&&state.hasAuth&&state.firmwareInfo&&!sameFirmware&&oadVersion(state.firmware)&&!state.busy&&!state.firmwareLoading),
+    hasPublishedUpdate:!!(state.connected&&state.firmwareSource==='published'&&state.firmwareInfo&&!sameFirmware&&oadVersion(state.firmware)),
     modeIndex:[3,0,1,2].indexOf(profile),unitIndex:reading?.unit??state.lastWeighingState?.unit??0,progressText:Number(state.oadProgress||0).toFixed(1),
     uploadedText:state.firmwareInfo?.uploadedAt?new Date(state.firmwareInfo.uploadedAt).toLocaleString():'Local file',firmwareSize:state.firmwareInfo?`${(state.firmwareInfo.size/1024).toFixed(1)} KB`:'',
     knownDeviceRows,hasKnownDevices:known.length>0,newNearbyDevices:newDevices.filter(row=>!row.cached),previouslySeenDevices:newDevices.filter(row=>row.cached),otherNearbyDevices:nearby.filter(row=>!row.isT100&&!knownIds.has(row.id)).map(decorate),

@@ -13,9 +13,9 @@ async function setup(){
   const c={...definition.methods,data:structuredClone(definition.data),properties:{demo:false},setData(p){for(const [key,value] of Object.entries(p)){const path=key.split('.');let target=this.data;for(const part of path.slice(0,-1))target=target[part];target[path.at(-1)]=value;}},triggerEvent:(type,detail)=>events.push({type,detail})};
   return {c,definition,navigation,events,listeners,counts:()=>({stopped,disconnected})};
 }
-test('home device setup opens in place and a first connection still plays the pairing scene',async()=>{
+test('home device setup opens in place and a first connection stays on Today',async()=>{
   const f=await setup();f.definition.lifetimes.ready.call(f.c);assert.equal(f.c.data.showAddDevice,true);assert.equal(f.navigation.length,0,'opening the sheet must not navigate');
-  f.c.connect({currentTarget:{dataset:{id:'A'}}});await new Promise(r=>setImmediate(r));assert.deepEqual(f.navigation,['/pairing/index']);assert.equal(f.events.at(-1).type,'close');
+  f.c.connect({currentTarget:{dataset:{id:'A'}}});await new Promise(r=>setImmediate(r));assert.deepEqual(f.navigation,[]);assert.equal(f.events[0].type,'connected');assert.equal(f.events.at(-1).type,'close');
   f.definition.lifetimes.detached.call(f.c);assert.equal(f.listeners.size,0);assert.equal(f.counts().disconnected,0,'opening controls must keep BLE connected');
 });
 test('closing the home sheet removes its discovery subscription without changing the page',async()=>{

@@ -1,0 +1,17 @@
+{
+  "image": "kcalack-device-barcode.jpg",
+  "format": "Code 128",
+  "payload": "0r3<$G8x&",
+  "schema": 1,
+  "name": "YD-03148c52fb00",
+  "shellId": 1,
+  "verification": {
+    "date": "2026-10-14",
+    "imageDecoder": "ZXing-C++",
+    "matchingAdvertisement": true,
+    "connected": true,
+    "rssi": -54,
+    "firmware": "1.0.0-ea98",
+    "hasFee0": true
+  }
+}

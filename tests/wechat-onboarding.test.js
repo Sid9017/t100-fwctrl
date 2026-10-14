@@ -20,18 +20,18 @@ test('missing plan blocks every normal navigation and cannot be bypassed by retu
   app.journal.data.profile={target:1800};assert.equal(f.utils.ensurePlan(),true);f.utils.route('devices');assert.deepEqual(f.navigation.at(-1),['push','/pages/devices/index']);
 });
 test('only isolated Devtools preview can enter a screen without a saved personal plan',async()=>{
-  for(const isDevtools of [false,true]){const f=await fixture({isDevtools,journal:{data:{profile:null}}});f.utils.route('device',true);assert.equal(f.navigation[0][0],isDevtools?'push':'reset');}
+  for(const isDevtools of [false,true]){const f=await fixture({isDevtools,journal:{data:{profile:null}}});f.utils.route('index',true);assert.equal(f.navigation[0][0],isDevtools?'push':'reset');}
 });
 test('deep linking directly to a BLE screen without a plan does not subscribe or scan',async()=>{
   let calls=0;const app={isDevtools:false,journal:{data:{profile:null}},service:{onChange(){calls++;},scan(){calls++;}}},f=await fixture(app),module={exports:{}};
   runInNewContext(await readFile('miniprogram/pages/shared/device-controller.js','utf8'),{module,require:path=>path.includes('utils')?f.utils:{viewModel,foodItems:[]},getApp:()=>app,wx:f.wx});
   const d=module.exports(1),p={...d,data:structuredClone(d.data),setData:patch=>Object.assign(p.data,patch)};p.onLoad({preview:'1'});p.onShow();assert.equal(calls,0);assert.equal(p.blocked,true);assert.deepEqual(f.navigation,[['reset','/pages/plan/index?required=1']]);
 });
-test('new device connection opens the pairing scene; reconnect opens controls directly',async()=>{
+test('new and saved device connections return to the inline home display',async()=>{
   for(const added of [false,true]){
     const app={journal:{data:{profile:{}}}},f=await fixture(app),module={exports:{}};
     runInNewContext(await readFile('miniprogram/pages/shared/device-controller.js','utf8'),{module,require:path=>path.includes('utils')?f.utils:{viewModel,foodItems:[]},getApp:()=>app,wx:f.wx});
     const d=module.exports(0),p={...d,data:structuredClone(d.data),setData:patch=>Object.assign(p.data,patch),service:{state:{knownDevices:added?[{id:'A'}]:[]},connect:async()=>{}}};
-    await p.connectDevice('A');p.openDevice();assert.equal(f.navigation[0][1],added?'/pages/device/index':'/pairing/index');
+    await p.connectDevice('A');p.openDevice();assert.equal(f.navigation[0][1],added?'/pages/index/index':'/pages/index/index?intro=1');
   }
 });

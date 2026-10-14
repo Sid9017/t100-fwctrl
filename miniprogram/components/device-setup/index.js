@@ -17,7 +17,7 @@ Component({
     close(error){this.triggerEvent('close',{error:error||''});},
     closeAddDevice(){definition.closeAddDevice.call(this);this.close();},
     closeScanner(){if(this.data.connecting)return;definition.closeScanner.call(this);this.close();},
-    openDevice(){this.connectedRoute=true;definition.openDevice.call(this);},
+    openDevice(){this.connectedRoute=true;this.triggerEvent('connected');},
     async run(action){await definition.run.call(this,action);if(this.connectedRoute&&this.mounted)this.close();},
     openScanner(){if(this.preview){this.setData({showAddDevice:false,showScanner:true,bridgeOnly:true});return;}definition.openScanner.call(this);},
     async scanBarcode(){

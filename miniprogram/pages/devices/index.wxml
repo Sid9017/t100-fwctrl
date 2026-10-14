@@ -1,14 +1,12 @@
-<template name="connection">
-  <view class="connect-intro"><text class="title">My device.</text></view>
-  <view class="warning" wx:if="{{bridgeOnly}}">Use WeChat Preview on your phone to scan and connect. Desktop Bluetooth records cannot confirm nearby devices.</view>
-  <view class="saved-heading"><text>Device <text class="list-count">{{knownDeviceRows.length}}</text></text><button class="add-device-icon" aria-label="Add device" disabled="{{!supported || connecting || busy}}" wx:if="{{!hasKnownDevices}}" bindtap="openAddDevice"><image class="ui-icon" aria-hidden="true" src="/assets/icons/plus.svg"/></button></view>
-  <view class="saved-list" wx:if="{{hasKnownDevices}}">
-    <button class="saved-device" wx:for="{{knownDeviceRows}}" wx:key="id" data-id="{{item.id}}" bindtap="connect" disabled="{{connecting || working || busy || bridgeOnly}}" aria-label="{{item.name}}, {{item.presence}}">
-      <view class="saved-info"><view class="saved-name-row"><view class="presence-dot {{item.available ? 'nearby' : ''}}"/><text class="device-name">{{item.name}}</text></view><text class="last-connected">Last connected {{item.lastConnectedText}}</text><text class="last-connected" wx:if="{{item.lastWeighing}}">{{item.lastWeighing.profile === 3 ? 'KCal' : item.lastWeighing.profile === 0 ? 'Kitchen' : item.lastWeighing.profile === 1 ? 'Espresso' : 'Pour over'}}</text></view>
-    </button>
+<view class="app-page theme-{{profile}}"><scroll-surface refresh-key="{{connected+':'+firmware+':'+showOadProgress+':'+error}}"><view class="page-body">
+  <view class="app-top"><view class="wordmark brand-lockup"><image class="brand-logo" src="/assets/ui/kcalbot.svg" mode="aspectFit" aria-hidden="true"/><text>KCALACK</text></view></view>
+  <text class="title">My device.</text>
+  <view class="card" wx:if="{{hasKnownDevices || connected}}">
+    <view class="device-info-row"><text class="device-info-name">{{connected ? deviceName : knownDeviceRows[0].name}}</text><view class="status-mark {{connected ? 'online' : ''}}"/><text class="muted">{{stateLabel}}</text></view>
+    <view class="line row"><text class="muted">Firmware</text><text>{{connected ? firmware : knownDeviceRows[0].firmware || '—'}}</text></view>
+    <view class="device-actions"><button class="device-action reset-action" disabled="{{!canControl || working}}" bindtap="resetDevice">Reset</button><button wx:if="{{hasPublishedUpdate}}" class="device-action primary" disabled="{{!canOad || working}}" bindtap="startInlineOad">OAD</button></view>
+    <view class="oad-reveal {{showOadProgress ? 'is-open' : ''}}"><view class="oad-inner"><view class="row"><text class="muted">{{oadProgress >= 100 ? 'Transfer complete' : 'OAD'}}</text><text>{{progressText}}%</text></view><view class="progress"><view style="{{'width:'+oadProgress+'%;'}}"/></view></view></view>
   </view>
-  <view class="saved-empty" wx:else><text class="empty-title">No device yet.</text></view>
-  <text class="presence-note" wx:if="{{scanning}}">{{bridgeOnly ? 'Checking simulator records…' : 'Checking nearby devices…'}}</text>
-  <view class="error" wx:if="{{error}}">{{error}}</view>
-</template>
-<view class="shell profile-{{profile}}"><view class="header"><view class="brand brand-lockup"><image class="brand-logo" src="/assets/ui/kcalbot.svg" mode="aspectFit" aria-hidden="true"/><text>KCALACK</text></view><button class="header-settings" aria-label="Device settings" bindtap="openSettings"><image class="ui-icon" aria-hidden="true" src="/assets/icons/settings.svg"/></button><view class="connection-chip {{connected ? 'is-connected' : ''}}"><view class="state-dot"/><text>{{preview ? 'Preview' : stateLabel}}</text></view></view><view class="preview-banner" wx:if="{{preview}}"><text>DEVTOOLS PREVIEW</text><picker range="{{previewScenes}}" value="{{sceneIndex}}" bindchange="onScene"><view>{{previewScenes[sceneIndex]}} ▾</view></picker></view><scroll-surface class="screen" refresh-key="{{showTools+':'+showFirmwareDetails+':'+showPrevious+':'+showOtherDevices+':'+newNearbyDevices.length+':'+activity.length+':'+containerLibrary.length+':'+connected+':'+error+':'+feedback}}"><view class="screen-content connection-content"><template is="connection" data="{{hasKnownDevices,knownDeviceRows,scanning,scanComplete,connecting,connected,working,supported,error,showScanner,showSettings,showActivity,bridgeOnly}}"/><view class="preview-card" wx:if="{{isDevtools}}"><text class="eyebrow">DEVELOPMENT</text><text class="card-title">Explore without Bluetooth.</text><view class="split-actions"><button class="secondary" bindtap="previewDevice">Preview device</button><button class="secondary" bindtap="previewFirmware">Preview firmware</button></view></view></view></scroll-surface><include src="../shared/sheets.wxml"/></view>
+  <view class="card" wx:else><text class="muted">No device yet.</text></view>
+  <view class="error" wx:if="{{error}}">{{error}}</view><view class="error" wx:if="{{firmwareError}}">{{firmwareError}}</view><view class="feedback" wx:if="{{feedback}}">{{feedback}}</view>
+</view></scroll-surface></view>

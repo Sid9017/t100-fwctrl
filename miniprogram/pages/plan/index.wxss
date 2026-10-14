@@ -8,8 +8,8 @@
 .review .card { margin:16rpx 0 0; padding:24rpx; border-radius:32rpx; }.review .card-heading { margin-bottom:16rpx; font-size:26rpx; }
 .review .field { gap:8rpx; margin:0; font-size:24rpx; }.review .field input { min-height:48px; height:48px; padding:12rpx 16rpx; font-size:32rpx; border-radius:18rpx; }
 .review .form-grid { gap:16rpx; }.estimate-note { display:block; margin-top:12rpx; font-size:22rpx; color:#656b5f; }
-.macro-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16rpx; }.macro-total { margin-left:auto; font-size:24rpx; color:#596529; }.macro-total.invalid { color:#ac3936; }
+.macro-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12rpx; }.macro-total { margin-left:auto; font-size:24rpx; color:#596529; }.macro-total.invalid { color:#ac3936; }
 .review .nutrition-plan .card-heading { min-height:48px; margin-bottom:8rpx; gap:16rpx; }.recalculate-plan { background:#f3f5eb; }
-.review .fiber-field { margin-top:16rpx; flex-direction:row; align-items:center; justify-content:space-between; }.review .fiber-field input { width:30%; }
+.review .macro-grid .field { min-width:0; font-size:22rpx; white-space:nowrap; }.review .macro-grid input { width:100%; min-width:0; padding:12rpx; }
 .review .wizard-actions { margin-top:auto; padding-top:20rpx; }.review .error { padding:16rpx; margin:12rpx 0 0; font-size:24rpx; }
 @media(max-height:620px){.review .card { padding:16rpx 20rpx; margin-top:12rpx; }.review .app-top { margin-bottom:8rpx; }.review .onboarding-progress { margin-bottom:12rpx; }.review .wizard-actions { padding-top:12rpx; }.estimate-note { margin-top:8rpx; }}

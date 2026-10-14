@@ -1,6 +1,5 @@
 {
-  "disableScroll": true,
-  "navigationBarTitleText": "KCALACK",
+  "component": true,
   "usingComponents": {
     "device-preview": "/components/device-preview/index",
     "scroll-surface": "/components/scroll-surface/index"

@@ -3,6 +3,10 @@
   "disableScroll": true,
   "usingComponents": {
     "scroll-surface": "/components/scroll-surface/index",
-    "device-setup": "/components/device-setup/index"
+    "device-setup": "/components/device-setup/index",
+    "live-device": "/pairing/device/index"
+  },
+  "componentPlaceholder": {
+    "live-device": "view"
   }
 }

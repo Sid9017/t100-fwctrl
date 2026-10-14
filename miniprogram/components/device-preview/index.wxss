@@ -6,3 +6,5 @@
 .led { position:absolute; top:38.3%; width:3.318898%; height:22.15%; border-radius:50%; background:#fff; box-shadow:0 0 5px #fff8; }
 .left { left:4.238189%; } .right { left:92.614173%; }
 .message { padding:12rpx 0; color:#656b5f; font-size:24rpx; line-height:1.5; }
+
+.display-only { height:100%; padding-bottom:0; }.display-only .light-bar { inset:0; width:100%; height:100%; }.display-only .panel { left:10%; top:10%; width:80%; height:80%; }.display-only .led { top:44%; width:3%; height:12%; }.display-only .left { left:3%; }.display-only .right { left:94%; }

@@ -54,6 +54,9 @@ test('native countdown/notify commits feed the same WASM functions and preserve 
 });
 test('native OAD controls disable unknown/same versions and auth-less devices',()=>{
   const base={connected:true,status:{flags:1},hasAuth:true,firmware:'1.0.0-1234',firmwareInfo:{version:'0x5678',size:32},battery:null,mtu:185};
-  assert.equal(viewModel(base).canOad,true);assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).sameFirmware,true);assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).canOad,false);
+  assert.equal(viewModel(base).canOad,true);
+  assert.equal(viewModel({...base,firmwareSource:'published'}).hasPublishedUpdate,true);
+  for(const patch of [{firmwareSource:'local'},{firmware:'Unknown'},{connected:false},{firmwareInfo:{version:'0x1234'}}])assert.equal(viewModel({...base,firmwareSource:'published',...patch}).hasPublishedUpdate,false);
+  assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).sameFirmware,true);assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).canOad,false);
   for(const patch of [{firmware:'Unknown'},{hasAuth:false},{busy:true},{firmwareLoading:true}])assert.equal(viewModel({...base,...patch}).canOad,false);
 });

@@ -6,11 +6,21 @@ Native WeChat Mini Program, AppID `wx30eebce62206e490`.
 
 1. Run `npm install`, then `npm run build:miniprogram`.
 2. Import the repository root into WeChat Devtools. `project.config.json` selects `miniprogram/` and the AppID.
-3. Compile and use Preview in phone WeChat. The installed Nightly desktop bridge does not implement BLE connection/GATT operations; its replayed device records do not confirm nearby presence.
+3. Compile and use Preview in phone WeChat, or use the native Mac BLE bridge below to debug without a phone. The built-in simulator BLE records alone do not confirm nearby presence.
 4. Allow Bluetooth, wake the T100 and tap **+** beside **Device list**. Select the device to connect.
 5. Configure `https://t100-ctrl.netlify.app` as a **request legal domain** for the AppID before using online OAD. All three OAD resources use `wx.request` with ArrayBuffer responses; no downloadFile domain or private publishing credential is needed. If WeChat does not accept this domain for the account, host/proxy the signed API on an eligible domain and change `OTA_ORIGIN` in `src/miniprogram/firmware.js`. Keep domain validation enabled.
 
 The Mini Program is the primary client. The web service continues providing signed OAD metadata, binary and manifest endpoints. The existing web sources are retained as the protocol/behavior reference.
+
+## Mac Bluetooth debugging (no phone)
+
+1. Install Python 3 and `python3 -m pip install -r scripts/desktop-ble/requirements.txt` (use a virtual environment if required).
+2. Build with `npm run build:miniprogram`, then keep `npm run dev:ble` running in a terminal.
+3. For this local simulator session, set `setting.urlCheck` to `false` in the ignored `project.private.config.json` so `wx.request` can reach localhost. Restore it to `true` before validating production networking. Keep the shared `project.config.json` unchanged.
+4. Compile in Devtools, then **+ → Nearby devices → Add & connect**. This scans the Mac's real radio, not simulator records. Allow Bluetooth for the terminal/Python host if macOS asks.
+5. Use the normal device controls. An already-bound scale still requires its existing auth backup imported into the simulator's separate storage. The bridge never extracts credentials or rebinds a device.
+
+The bridge listens only on `127.0.0.1:8768`, requires a fresh per-process token, and exposes only BLE operations. Its config is generated under ignored `miniprogram/lib/`; never commit it. Only a Devtools runtime can select this adapter. Phone previews always use native WeChat BLE. Stop with Ctrl+C; restart the bridge and recompile to reconnect. Recompilation replaces the old bridge session and releases its connection. If the simulator vanishes, a watchdog disconnects after 15 seconds without requests. The local transport adds latency; validate final OAD timing on a phone.
 
 ## Screens and feature parity
 
@@ -56,14 +66,14 @@ No login, phone-number collection, OpenID request or account service is used. Pr
 
 Native routes replace the old horizontal swiper and pagination dots:
 
-- `pages/index/index`: no disconnected chassis preview or dedicated Weigh action; the + adds a device, while the saved-device chip opens its controls/list. The home shows today’s journal and recording; historical date selection lives in reports.
+- `pages/index/index`: no disconnected chassis preview or dedicated Weigh action; the + adds a device, while the saved-device chip only displays connection status. The home shows today’s journal and recording; historical date selection lives in reports.
 - `pages/plan/index`: four-step personal profile and editable daily target/TDEE/nutrition plan. Body fat is optional; unknown sex requires manual TDEE. Resting energy uses Mifflin–St Jeor (1990, https://pubmed.ncbi.nlm.nih.gov/2305711/), multiplied by an explicitly selected activity estimate. The starting intake target equals maintenance, not an automatically prescribed deficit. Goal weight/timeline are stored as user goals, not predictions.
-- `pages/devices/index`: one saved device; green/grey presence and last connection time. `+` opens **Scan barcode** or **Nearby devices**. A second device requires removing the existing local association first. Removal retains device binding, cached auth backups and the food journal.
-- `pairing/index` (subpackage): newly added devices play a real two-second Rive perspective animation before opening controls. Reconnects bypass it. Devtools preview holds the final pose and offers Replay; the phone continues automatically. No Rive account or remote asset is needed.
-- `pages/device/index`: connection automatically opens this route; read-only firmware mode, unit wheel, live weight, original line drawing/WASM, container library and recipe controls. Recording is the bottom primary action. Countdown/TDEE, notify and raw three-image history remain under More device controls. Auth backup, emotion installation, reset and firmware are in device settings. Native Back keeps BLE connected.
+- `pages/devices/index`: device identity and cached/current firmware, a confirmed red Reset action, and OAD only when a published signed package differs from the known current version. OAD expands an inline transfer progress bar. Successful reset removes the local association after the device acknowledges it. Add device stays on Home.
+- Today embeds `pairing/device/index`, an asynchronous subpackage component: pairing reveals it in normal document flow; the real Rive pitches straight from 45 degrees to overhead (no roll), then zooms 1.06×; the display fills 80% of the front window. The rear outline gradient moves with the geometry. Its final pose matches the static fallback and enlarged 320×80 WASM panel. The legacy `pairing/index` URL only redirects home.
+- There is no standalone device screen. The home display continuously follows firmware status/readings/commits; its KCal container entry opens container settings. Device reset and published firmware upgrades live in My device. Hide/background pauses rendering without disconnecting BLE.
 - `pages/record/index`: up to three camera/album photos, meal/time/weight, manual kcal/nutrients, notes and five-level rating. Food recognition is a blank placeholder with no recognition API. Save is local; Send to device reuses the same UUID for edits and sends the supported kcal/photos/rating/timestamp. Camera photos are retained in app files and cropped to 40×40 RGB565+alpha for BLE.
 - `pages/reports/index`: Week and Month views, with a selected day’s nutrition summary and meals below both. Selecting a chart/calendar date keeps the current view; selecting a weekly bar does not move the seven-day chart range. Reports do not include a new-record entry. The week chart uses the recorded-day average; the monthly view uses a date picker. Missing days are excluded from averages; missing nutrients are marked partial; target/TDEE thresholds follow the plan active on that date.
-- `pages/profile/index`: edit plan, devices/reports and journal JSON export. Photos are local files and are not embedded in that JSON export.
+- `pages/profile/index`: edit the personal plan, open device settings and view the saved-container count. Reports remain accessible from Home.
 
 The journal is isolated in `kcalack.journal.v1`; plan drafts use `kcalack.plan-draft.v1`. Failed storage writes leave the in-memory journal unchanged; corrupt saved journals are not overwritten. A deleted meal retains per-device deletion requests until explicitly syncing to that device. A GATT write completion means **sent**, not a separate firmware persistence acknowledgement.
 
@@ -77,7 +87,7 @@ After scanning, only a fresh exact-name broadcast can trigger connection; cached
 
 Without a saved plan, first launch resets the route stack to the plan wizard. A real user cannot bypass it by Back or a deep link. Profile settings still allow later edits.
 
-Use **Preview screens** in Devtools profile settings, or **Preview** in the plan wizard for isolated home, pairing animation, plan, device, firmware, record and report previews. Device preview includes KCal, Kitchen, Espresso, Pour over, Idle, Sleeping, Countdown, History, Notification and Unbound scenes. `?preview=1` is accepted only when the actual platform is `devtools`; phone routes always use the real service. Preview has no BLE adapter, auth store or network client. Sample profile/journal data is held in a separate in-memory store and never written to real local storage. Firmware progress is explicitly a preview, not a transfer.
+Use **Preview screens** in Devtools profile settings, or **Preview** in the plan wizard for isolated home, inline pairing, device information, record and report previews. `?preview=1` is accepted only when the actual platform is `devtools`; phone routes always use the real service. Preview has no BLE adapter, auth store or network client. Sample profile/journal data is held in a separate in-memory store and never written to real local storage. Firmware progress is explicitly a preview, not a transfer.
 
 ### Visual review
 
@@ -86,6 +96,10 @@ Reviewed with ui-ux-pro-max mobile guidance and the applicable design-taste-fron
 
 Mode selection is exclusively on the physical scale. The app has no mode wheel or mode-write handler; FEE1/FEE5 updates set the label and theme. The last confirmed profile/unit/weight text is cached with the single device association on mode/unit change, disconnect and app background. Recording snapshots does not write any BLE characteristic. KCal uses white-to-green, Kitchen white-to-yellow, Espresso white-to-coffee and Pour over white-to-orange gradients. The Devtools scene picker changes only the isolated preview renderer.
 
-Home toolbar order is Statistics, Settings and Add device. Calendar/history browsing is only in reports. A saved device removes Add and leaves the other icons right aligned. The home + opens the same barcode/nearby discovery sheet in place, without a page transition. Only a successful connection navigates into pairing/controls.
+Home toolbar order is Statistics, Settings and Add device. Calendar/history browsing is only in reports. A saved device removes Add and leaves the other icons right aligned. The home + opens the same barcode/nearby discovery sheet in place, without a page transition. A successful connection reveals the live device module below Today; it does not navigate away from Home.
 
 All page routes disable native page scrolling. The shared `scroll-surface` uses enhanced scroll-view with hidden scrollbars and a seven-tick right rail driven by actual content/viewport heights. The active tick is long, neighboring ticks medium, and the others short; a screen with no overflow needs no rail. Sheets share the same surface. Plan step four keeps all six numeric fields and navigation actions on one standard phone screen, with scrolling still available for unusually small viewports, keyboard or validation errors.
+
+Weight unit is a single g/oz switch in Profile settings, stored under `kcalack.weight-unit.v1`. It syncs on each connection after binding/auth/setup, or after changing the switch; busy actions defer it. Failed writes retain the preference and retry on reconnect, without repeated writes on every notification. Preview preferences stay in memory. Home exposes the container weight entry only in KCal mode; there are no separate tare, navigation-to-scale, mode-changing, unit-wheel or duplicate weight controls.
+
+Home connection status is read-only. Foreground auto-reconnect listens for Bluetooth adapter changes and scans only for the saved identity with matching local auth; it ignores cached discovery records, backs off between scan cycles/failures, waits through busy actions, and stops scanning in the background. The Rive chassis crossfades to the live WASM display, then the module contracts to a compact screen-only view with a KCal container entry.

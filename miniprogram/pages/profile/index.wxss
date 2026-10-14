@@ -1,1 +1,3 @@
-.profile-mark { width:72rpx; height:72rpx; }.settings-row { display:flex; justify-content:space-between; text-align:left; background:transparent; padding:24rpx 0; border-radius:0; border-bottom:1px solid #f0f0f2; }.settings-row > view { min-width:0; }.settings-row .muted { margin-top:10rpx; font-weight:400; }.settings-row > text { font-size:40rpx; color:#a3a895; }.export-journal { margin-top:24rpx; }
+.settings-row { display:flex; justify-content:space-between; text-align:left; background:transparent; padding:24rpx 0; border-radius:0; border-bottom:1px solid #f0f0f2; }.settings-row > view { min-width:0; }.settings-row .muted { margin-top:10rpx; font-weight:400; }.settings-row > text { font-size:40rpx; color:#a3a895; }
+
+.unit-switch { display:flex; align-items:center; gap:12rpx; color:#929789; font-size:28rpx; }.selected-unit { color:#353535; font-weight:650; }.unit-setting { min-height:48px; }
