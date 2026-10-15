@@ -13,3 +13,6 @@ export {WeightUnitPreference} from './unit-preference.js';
 export {AutoConnect} from './auto-connect.js';
 
 export {PlanSync} from './plan-sync.js';
+export {PowerSyncReader} from './powersync.js';
+
+export {profileRequest,serverProfile} from './profile-contract.js';

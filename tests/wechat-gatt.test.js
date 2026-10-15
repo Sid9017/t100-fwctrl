@@ -224,6 +224,21 @@ test('native controls reuse authenticated web wire payloads, confirm UUID echoes
   await service.invoke('factoryDevice');assert.equal(service.auth.records().length,0);assert.equal(service.state.connected,false);
   await service.adapter.dispose();
 });
+test('background calorie sync sends only authenticated data topics, preserving the current screen',async()=>{
+ const m=mock(),service=new MiniService(m.api);
+ try{
+  await service.scan();await service.connect(device.id);
+  service.importAuth(JSON.stringify({pub_key:'036b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296',auth_key:'abcd1234',name:device.name}));
+  const before=m.calls.filter(c=>c.name==='write').length;
+  const commits=JSON.stringify(service.state.previewCommits);
+  await service.invoke('scaleUpdateKcal',{currentKcal:-250,targetKcal:1350,tdeeKcal:1600,navigate:false});
+  const packets=m.calls.filter(c=>c.name==='write').slice(before).map(c=>Buffer.from(c.options.value));
+  assert.deepEqual(packets.map(p=>p[0]),[0x63,0x64]);
+  assert.ok(packets.every(p=>p.subarray(1,9).toString()==='abcd1234'));
+  assert.equal(packets[0].subarray(9).toString(),'13501600');assert.equal(packets[1].subarray(9).toString(),'-0250');
+  assert.equal(JSON.stringify(service.state.previewCommits),commits);
+ }finally{await service.adapter.dispose();}
+});
 test('firmware mode reports update cached weighing state without sending a mode command',async()=>{
  const m=mock(),service=new MiniService(m.api);service.devices.set(device.id,device);await service.connect(device.id);const before=m.calls.filter(c=>c.name==='write').length;service.publish('status',{flags:1,coffee:{profile:2}});assert.equal(viewModel(service.state).profile,2);assert.equal(m.calls.filter(c=>c.name==='write').length,before);await service.disconnect();const saved=new KnownDeviceStore(m.api);assert.equal(saved.list()[0].lastWeighing.profile,2);assert.equal(viewModel(service.state).profile,2);await service.adapter.dispose();
 });

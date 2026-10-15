@@ -1,0 +1,7 @@
+:host { display:block; width:40rpx; height:40rpx; flex:none; }
+.anchor,.indicator,.fallback { width:40rpx; height:40rpx; }.anchor { position:relative; }.indicator,.fallback { position:absolute; inset:0; }.is-hidden { opacity:0; }
+.pairing-overlay { position:fixed; inset:0; z-index:1200; }.pairing-backdrop { position:absolute; inset:0; background:linear-gradient(#fff 15%,#f8fbef 64%,#e8f1c9); opacity:1; transition:opacity 450ms ease; }.pairing-heading { position:absolute; top:20%; left:0; right:0; text-align:center; opacity:1; transition:opacity 200ms ease; }.revealing { opacity:0; }.eyebrow { display:block; font-size:24rpx; letter-spacing:3rpx; color:#7b8271; }.heading { display:block; font-size:56rpx; letter-spacing:-2rpx; font-weight:750; margin-top:20rpx; }.pairing-canvas { position:absolute; inset:0; width:100%; height:100%; }
+
+.celebrating { animation:connected-shake 280ms ease-out both; transform-origin:50% 60%; }
+@keyframes connected-shake { 0%,100% { transform:translateX(0) rotate(0); } 18% { transform:translateX(-1.5px) rotate(-9deg); } 36% { transform:translateX(1.5px) rotate(8deg); } 54% { transform:translateX(-1px) rotate(-6deg); } 72% { transform:translateX(1px) rotate(4deg); } 88% { transform:rotate(-2deg); } }
+@media(prefers-reduced-motion:reduce){.celebrating { animation:none; }}

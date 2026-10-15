@@ -34,3 +34,15 @@ test('failed storage writes keep the original preference and preview never write
  const f=fixture();f.api.setStorageSync=()=>{throw new Error('Storage full');};assert.throws(()=>f.prefs.setUnit(1),/Storage full/);assert.equal(f.prefs.state.unit,0);f.prefs.dispose();
  const preview=new WeightUnitPreference(null);preview.setUnit(1);assert.equal(preview.state.unit,1);assert.equal(f.storage.get('kcalack.weight-unit.v1'),0);preview.dispose();
 });
+
+test('disconnect clears old sync feedback and offline writes stay pending without an error',async()=>{
+ const f=fixture();try{
+ f.setWrite(async()=>{throw new Error('No reply');});f.connect();await settle();assert.ok(f.prefs.state.error);
+ f.service.update({connected:false});assert.equal(f.prefs.state.error,'');assert.equal(f.prefs.state.syncing,false);
+ f.prefs.setUnit(1);await settle();assert.equal(f.storage.get('kcalack.weight-unit.v1'),1);assert.equal(f.prefs.state.error,'');
+ f.setWrite(async()=>{throw new Error('Device disconnected');});f.connect();await settle();
+ assert.equal(f.prefs.state.error,'');assert.equal(f.prefs.state.pending,true);
+ f.setWrite(async()=>{});f.service.update({connected:false});f.connect();await settle();
+ assert.deepEqual(f.calls.at(-1),['scaleSetUnit',1]);assert.equal(f.prefs.state.pending,false);
+ }finally{f.prefs.dispose();}
+});

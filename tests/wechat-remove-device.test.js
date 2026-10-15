@@ -36,6 +36,17 @@ test('offline Remove clears credentials and device cache without a BLE write, pr
 test('online Reset removes local data before sending the authenticated reset',async()=>{
  const {service,writes}=fixture(true);await service.removeDevice({reset:true});assert.equal(writes.length,1);assert.equal(service.state.connected,false);assert.equal(service.removing,false);
 });
+test('removal publishes the unbound state before reset finishes, retaining transport for reset',async()=>{
+ const {service}=fixture(true);let release,cleared=false;
+ service.actions.waitForResetDisconnect=()=>new Promise(resolve=>release=resolve);
+ const pending=service.removeDevice({reset:true,onCleared:()=>{
+  cleared=true;assert.equal(service.state.connected,false);assert.equal(service.state.device,null);
+  assert.deepEqual(service.state.knownDevices,[]);assert.equal(service.state.firmware,'--');
+  assert.equal(service.connection.active,true,'the reset still needs the transport');
+ }});
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(cleared,true);assert.ok(release);
+ release('Restarted');await pending;assert.equal(service.connection,null);
+});
 test('failed reset does not restore deleted credentials and releases the connection',async()=>{
  const {service}=fixture(true);service.session.writeVendorPayload=async()=>{throw new Error('Write failed');};
  await assert.rejects(service.removeDevice({reset:true}),/Write failed/);assert.equal(service.auth.records().length,0);assert.deepEqual(service.state.knownDevices,[]);assert.equal(service.state.connected,false);assert.equal(service.removing,false);
@@ -46,10 +57,10 @@ test('missing auth prevents reset cleanup and competing actions prevent removal'
 });
 test('device page confirms Reset online and Remove offline and guards connection changes',async()=>{
  for(const connected of [false,true]){
-  let page,modal,args;const service={state:{connected,device:connected?device:null,knownDevices:[device]},removeDevice:async a=>args=a};
-  runInNewContext(await readFile('miniprogram/pages/devices/index.js','utf8'),{require:()=>()=>({data:{}}),Page:p=>page=p,wx:{showModal:o=>{modal=o;o.success({confirm:true});}}});
+  let page,modal,args,route;const app={pendingPairingIntro:true};const service={state:{connected,device:connected?device:null,knownDevices:[device]},removeDevice:async a=>args=a};
+  runInNewContext(await readFile('miniprogram/pages/devices/index.js','utf8'),{require:()=>()=>({data:{}}),Page:p=>page=p,getApp:()=>app,wx:{reLaunch:o=>route=o.url,showModal:o=>{modal=o;o.success({confirm:true});}}});
   const ctx={data:{},service,run:fn=>fn(),setData:()=>{}};await page.resetDevice.call(ctx);
-  assert.equal(modal.confirmText,connected?'Reset':'Remove');assert.equal(args.reset,connected);
+  assert.equal(modal.confirmText,connected?'Reset':'Remove');assert.equal(args.reset,connected);assert.equal(route,'/pages/index/index');assert.equal(app.pendingPairingIntro,false);
   args=null;ctx.run=fn=>{service.state.connected=!connected;return fn();};await assert.rejects(page.resetDevice.call(ctx),/Connection changed/);assert.equal(args,null);
  }
 });

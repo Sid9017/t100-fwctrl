@@ -1,0 +1,20 @@
+<view class="dish-overlay {{sheetPhase}}">
+ <view class="dish-mask" bindtap="done" catchtouchmove="stopPropagation"/>
+ <view id="dish-sheet" class="dish-sheet theme-{{themeProfile}}" bindanimationend="sheetAnimationEnd" aria-role="dialog" aria-label="Edit dish weight and container">
+  <view class="sheet-handle" aria-hidden="true"/>
+  <scroll-view class="dish-sheet-scroll" style="{{sheetContentHeight > 0 ? 'height:'+sheetContentHeight+'px;' : ''}}" scroll-y enhanced show-scrollbar="{{false}}"><view class="dish-body">
+  <view class="dish-header"><text class="title">{{meal}}.</text><button class="dish-close can-close" bindtap="done" aria-disabled="{{!ready}}" aria-label="Save dish and close" hover-class="none"><view class="close-symbol" aria-hidden="true"><view class="close-stroke first"/><view class="close-stroke second"/></view></button></view>
+  <block wx:if="{{ready}}">
+   <view class="dish-photo-row">
+    <image class="dish-photo" src="{{photo}}" mode="aspectFill" bindtap="previewPhoto" aria-label="Preview dish photo"/>
+    <view class="dish-scale-row"><view class="dish-scale-display"><scale-readout value="{{scaleWeight}}" total="{{gross}}" total-valid="{{live && readingValid && !containerEditing}}" container="{{container}}" unit="{{unit}}" overload="{{live && overloaded}}" bindeditstart="pauseLive" bindweightinput="scaleInput"/></view><view class="weight-label"><image class="weight-bot-fallback" src="/assets/ui/kcalbot.svg" aria-hidden="true"/><view class="weight-bot-status"><scalebot demo="{{preview}}"/></view></view></view>
+   </view>
+   <view class="card dish-container-card">
+    <container-control demo="{{preview}}" selection-mode selected-container-id="{{container.id || ''}}" bindselectionchange="containerSelected" bindeditorchange="containerEditor" bindrevealed="containerRevealed"/>
+   </view>
+  </block>
+  <view class="error" wx:if="{{error}}">{{error}}</view>
+
+  </view></scroll-view>
+ </view>
+</view>

@@ -63,3 +63,10 @@ test('clearing sends zero target/TDEE and remaining; invalid combinations never 
   assert.equal(buildFee0CountdownUpdateSequence({currentKcal:0,targetKcal:0,tdeeKcal:0})[0].subarray(1).toString(),'00000000');
   for(const args of [{currentKcal:1,targetKcal:0,tdeeKcal:0},{currentKcal:0,targetKcal:100,tdeeKcal:0},{currentKcal:0,targetKcal:0,tdeeKcal:100}])assert.throws(()=>buildFee0CountdownUpdateSequence(args));
 });
+
+test('background countdown synchronization writes data without UI navigation', () => {
+  const sequence = buildFee0CountdownUpdateSequence({currentKcal:780,targetKcal:1800,tdeeKcal:2100,navigate:false});
+  assert.deepEqual(sequence.map(payload=>payload[0]),[TOPICS.countdownPreset,TOPICS.countdownRemaining]);
+  assert.equal(sequence[0].subarray(1).toString(),'18002100');
+  assert.equal(sequence[1].subarray(1).toString(),'0780');
+});

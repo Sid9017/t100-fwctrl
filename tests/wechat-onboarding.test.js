@@ -27,11 +27,11 @@ test('deep linking directly to a BLE screen without a plan does not subscribe or
   runInNewContext(await readFile('miniprogram/pages/shared/device-controller.js','utf8'),{module,require:path=>path.includes('utils')?f.utils:{viewModel,foodItems:[]},getApp:()=>app,wx:f.wx});
   const d=module.exports(1),p={...d,data:structuredClone(d.data),setData:patch=>Object.assign(p.data,patch)};p.onLoad({preview:'1'});p.onShow();assert.equal(calls,0);assert.equal(p.blocked,true);assert.deepEqual(f.navigation,[['reset','/pages/plan/index?required=1']]);
 });
-test('new and saved device connections return to the inline home display',async()=>{
+test('new devices bind before returning Home; saved connections skip the pairing animation',async()=>{
   for(const added of [false,true]){
     const app={journal:{data:{profile:{}}}},f=await fixture(app),module={exports:{}};
     runInNewContext(await readFile('miniprogram/pages/shared/device-controller.js','utf8'),{module,require:path=>path.includes('utils')?f.utils:{viewModel,foodItems:[]},getApp:()=>app,wx:f.wx});
-    const d=module.exports(0),p={...d,data:structuredClone(d.data),setData:patch=>Object.assign(p.data,patch),service:{state:{knownDevices:added?[{id:'A'}]:[]},connect:async()=>{}}};
+    const d=module.exports(0),p={...d,data:structuredClone(d.data),setData:patch=>Object.assign(p.data,patch),service:{state:{knownDevices:added?[{id:'A'}]:[]},connect:async()=>{},addDevice:async()=>{}}};
     await p.connectDevice('A');p.openDevice();assert.equal(f.navigation[0][1],added?'/pages/index/index':'/pages/index/index?intro=1');
   }
 });

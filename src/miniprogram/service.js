@@ -2,7 +2,7 @@ import {BrowserConsole} from '../web/console.js';
 import {AuthStore} from '../web/auth-store.js';
 import {verifyMiniToken,miniSubtle,miniStorage,randomUuid,readLocalFile,byteFile,wxCall} from './platform.js';
 import {loadMiniPreset,miniRasterFood,renderMiniNotify} from './assets.js';
-import {latestMiniFirmware} from './firmware.js';
+import {latestMiniFirmware,OTA_ORIGIN} from './firmware.js';
 import {validateSignedOad} from '../web/signed-ota-format.js';
 import {oadVersion} from '../web/ota-format.js';
 import containerWire from '../vendor/ble/core/fee0-container-weight-wire.js';
@@ -10,13 +10,14 @@ import sessionModule from '../vendor/ble/session/t100-session.js';
 import scaleWire from '../vendor/ble/core/fee0-scale-wire.js';
 import {WechatGattAdapter} from './gatt.js';
 import {KnownDeviceStore} from './device-store.js';
+import {isConnectionUnavailable} from './sync-errors.js';
 const {canonicalUuid}=sessionModule;
 export class MiniService {
   constructor(api,{adapter=new WechatGattAdapter(api),deviceStore=new KnownDeviceStore(api),journal=null,scanMs=10000}={}) {
     this.api=api;this.journal=journal;this.auth=new AuthStore(miniStorage(api));this.firmwareGeneration=0;this.firmwareBundle=null;
     this.actions=new BrowserConsole({adapter,auth:this.auth,bluetooth:null,verifyToken:verifyMiniToken,loadEmotion:loadMiniPreset,rasterFood:miniRasterFood(api),oadTrust:{subtle:miniSubtle}});
     this.adapter=adapter;this.deviceStore=deviceStore;this.session=this.actions.session;this.listeners=new Set();this.devices=new Map();this.nearbyDevices=new Map();this.connection=null;this.connecting=false;this.scanMs=scanMs;this.scanTimer=null;this.scanGeneration=0;
-    this.state={lastWeighingState:deviceStore.list()[0]?.lastWeighing||null,activity:[],busy:false,actionName:'',feedback:'',previewCommits:[],authCount:0,hasAuth:false,containerState:null,containerPending:null,containerMessage:'',firmwareLoading:false,firmwareInfo:null,firmwareError:'',oadProgress:0,bridgeOnly:!!adapter.bridgeOnly,devices:[],knownDevices:deviceStore.list(),nearbyDevices:[],scanning:false,scanStats:null,scanComplete:false,connecting:false,connectingDeviceId:null,connected:false,device:null,firmware:'--',battery:null,mtu:null,reading:null,status:null,warnings:deviceStore.loadError?[deviceStore.loadError]:[],error:''};
+    this.state={lastWeighingState:deviceStore.list()[0]?.lastWeighing||null,activity:[],busy:false,actionName:'',feedback:'',previewCommits:[],authCount:0,hasAuth:false,containerState:null,containerPending:null,containerMessage:'',firmwareRemoteAvailable:!!OTA_ORIGIN,firmwareLoading:false,firmwareInfo:null,firmwareError:'',oadProgress:0,bridgeOnly:!!adapter.bridgeOnly,devices:[],knownDevices:deviceStore.list(),nearbyDevices:[],scanning:false,scanStats:null,scanComplete:false,connecting:false,connectingDeviceId:null,connected:false,device:null,firmware:'--',battery:null,mtu:null,reading:null,status:null,warnings:deviceStore.loadError?[deviceStore.loadError]:[],error:''};
     this.actions.on('ScanUpsert',rows=>{const row=rows.find(item=>item.id===this.state.device?.id);if(row?.firmware)this.publish('firmware',row.firmware);});
     this.actions.on('ActionBusy',({busy})=>this.update({busy}));
     this.actions.on('SimActionLog',({line,progressKey})=>this.log(line,progressKey));
@@ -134,15 +135,17 @@ export class MiniService {
     this.journal?.forgetDevice([...new Set([device.id,...saved.map(row=>row.id)])]);
     const knownDevices=this.deviceStore.remove();
     this.devices.clear();this.nearbyDevices.clear();this.firmwareGeneration++;this.firmwareBundle=null;
-    this.update({knownDevices,lastWeighingState:null,hasAuth:false,authCount:this.auth.records().length,containerState:null,containerPending:null,containerMessage:'',previewCommits:[],reading:null,status:null,firmwareInfo:null,firmwareLoading:false,firmwareError:'',oadProgress:0,planSyncError:'',activity:[],feedback:'',devices:[],nearbyDevices:[],scanStats:null,scanComplete:false});
+    this.update({knownDevices,connected:false,device:null,firmware:'--',battery:null,mtu:null,lastWeighingState:null,hasAuth:false,authCount:this.auth.records().length,containerState:null,containerPending:null,containerMessage:'',previewCommits:[],reading:null,status:null,firmwareInfo:null,firmwareLoading:false,firmwareError:'',oadProgress:0,planSyncError:'',activity:[],feedback:'',devices:[],nearbyDevices:[],scanStats:null,scanComplete:false});
   }
-  async removeDevice({reset=false}={}){
+  async removeDevice({reset=false,onCleared}={}){
     if(this.removing||this.state.busy||this.state.adding||this.state.planSyncing||this.state.actionName||this.connecting)throw new Error('Wait for the current device action.');
     const device=this.state.device||this.deviceStore.list()[0];if(!device)return;
     if(reset&&!this.connection?.active)throw new Error('Device disconnected. Use Remove to clear its local data.');
     this.removing=true;let cleared=false;
     this.update({actionName:reset?'resetDevice':'removeDevice',error:''});
-    const clear=()=>{cleared=true;this.clearDeviceLocal(device);};
+    // Release the UI as soon as local removal is committed. Keep the transport
+    // alive until the prepared, authenticated reset has been transmitted.
+    const clear=()=>{cleared=true;this.clearDeviceLocal(device);onCleared?.();};
     try{
       await this.stopScan();
       if(reset)await this.invoke('resetDevice',{beforeReset:clear});
@@ -153,14 +156,14 @@ export class MiniService {
     }
   }
 
-  async invoke(name,args){
+  async invoke(name,args,{deferOffline=false}={}){
     if(this.state.busy||this.connecting)throw new Error('Wait for the current device action.');
     this.update({actionName:name,error:'',feedback:''});
     try{
       const result=await (name==='downloadOad'?this.actions.downloadOad(args.file,args.manifest):this.actions[name](args));if(result.message)result.message=result.message.replace(/browser/gi,'Mini Program');this.update({feedback:result.message||'Command sent'});this.log(result.message||'Command sent');
       if(name==='setContainerWeight'){this.update({containerPending:result.confirmed===false?{uuid:result.uuid,grams:result.grams}:null,containerMessage:result.message});if(result.confirmed===false&&this.state.reading)this.publish('reading',this.state.reading);}
       this.updateAuth();return result;
-    }catch(error){this.log(error.message);this.update({error:error.message.replace(/browser/gi,'Mini Program')});throw error;}
+    }catch(error){if(!deferOffline||(this.state.connected&&!isConnectionUnavailable(error))){this.log(error.message);this.update({error:error.message.replace(/browser/gi,'Mini Program')});}throw error;}
     finally{this.update({actionName:''});}
   }
   async setContainer(grams,uuid){return this.invoke('setContainerWeight',{grams,uuid:grams===null?undefined:uuid||await randomUuid(this.api)});}
@@ -173,6 +176,7 @@ export class MiniService {
   async importAuthFile(){const result=await wxCall(this.api,'chooseMessageFile',{count:1,type:'file',extension:['json']});const file=result.tempFiles?.[0];if(!file)return;return this.importAuth(await readLocalFile(this.api,file.path,{text:true}));}
   async exportAuth(){const path=this.api.env.USER_DATA_PATH+'/t100-auth-backup.json';await wxCall(this.api.getFileSystemManager(),'writeFile',{filePath:path,data:JSON.stringify(this.auth.records(),null,2),encoding:'utf8'});return path;}
   async loadLatestFirmware(){
+    if(!OTA_ORIGIN)return;
     if(this.state.busy)return;const generation=++this.firmwareGeneration;this.update({firmwareLoading:true,firmwareError:''});
     try{const bundle=await latestMiniFirmware(this.api);if(generation!==this.firmwareGeneration)return;this.firmwareBundle=bundle;this.update({firmwareSource:'published',firmwareInfo:bundle.metadata,oadProgress:0});}
     catch(error){if(generation===this.firmwareGeneration)this.update({firmwareError:error.message});}

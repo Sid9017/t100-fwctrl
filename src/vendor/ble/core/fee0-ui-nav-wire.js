@@ -11,12 +11,12 @@ function buildFee0UiNavPayload(target) {
   return Buffer.from([TOPICS.uiNavigate, value]);
 }
 
-function buildFee0CountdownUpdateSequence({ currentKcal, targetKcal, tdeeKcal = targetKcal } = {}) {
+function buildFee0CountdownUpdateSequence({ currentKcal, targetKcal, tdeeKcal = targetKcal, navigate = true } = {}) {
   if(Number(targetKcal)===0 && Number(currentKcal)!==0)throw new Error('Remaining must be 0 when clearing countdown');
   return [
     buildFee0CountdownTargetPayload(targetKcal,tdeeKcal),
     buildFee0KcalTopicPayload(TOPICS.countdownRemaining, currentKcal),
-    buildFee0UiNavPayload(UI_NAV_TARGETS.countdown),
+    ...(navigate ? [buildFee0UiNavPayload(UI_NAV_TARGETS.countdown)] : []),
   ];
 }
 

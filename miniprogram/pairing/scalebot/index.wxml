@@ -1,0 +1,11 @@
+<view id="anchor" class="anchor {{celebrating ? 'celebrating' : ''}}" role="status" aria-label="{{stateLabel}}">
+  <image wx:if="{{!ready && !pairing}}" class="fallback" src="/assets/ui/kcalbot.svg"/>
+  <canvas type="2d" id="indicator" class="indicator {{pairing ? 'is-hidden' : ''}}" aria-hidden="true"/>
+</view>
+<root-portal wx:if="{{pairing}}">
+  <view class="pairing-overlay" catchtouchmove="noop">
+    <view class="pairing-backdrop {{revealing ? 'revealing' : ''}}"/>
+    <view class="pairing-heading {{revealing ? 'revealing' : ''}}"><text class="eyebrow">KCALACK</text><text class="heading">Meet your scalebot.</text></view>
+    <canvas type="2d" id="pairingCanvas" class="pairing-canvas" aria-hidden="true"/>
+  </view>
+</root-portal>

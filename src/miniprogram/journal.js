@@ -1,3 +1,4 @@
+import {validateCachedProfile} from './profile-contract.js';
 // The phone owns full meal records. BLE only receives the compact display record.
 export const JOURNAL_KEY='kcalack.journal.v1';
 export const MEALS=['Breakfast','Lunch','Dinner','Snack'];
@@ -5,6 +6,7 @@ export const ACTIVITY=[{label:'Mostly sitting',factor:1.2},{label:'Lightly activ
 const num=(v,label,min,max,integer=false)=>{if(String(v).trim()==='')throw new Error(`${label} is required`);const n=Number(v);if(!Number.isFinite(n)||n<min||n>max||(integer&&!Number.isInteger(n)))throw new Error(`${label} must be ${min}–${max}`);return n;};
 export function dayKey(date=new Date()){return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;}
 export function estimatePlan(form){
+  if(form.source==='server')return validateCachedProfile(form);
   const age=num(form.age,'Age',18,100,true),height=num(form.height,'Height',100,250),weight=num(form.weight,'Weight',30,300);
   if(!['female','male','private'].includes(form.sex))throw new Error('Select your sex or keep it private');
   const activity=Number(form.activity);if(!ACTIVITY[activity])throw new Error('Select an activity level');
@@ -30,26 +32,45 @@ export function validateMeal(input){
   const date=new Date(`${input.date}T${input.time}:00`);if(!Number.isFinite(date.getTime())||dayKey(date)!==input.date||!/^\d{2}:\d{2}$/.test(input.time))throw new Error('Invalid date or time');
   const weight=String(input.weight??'').trim()?num(input.weight,'Weight',0,99999):null;
   const photos=input.photos||[];if(!Array.isArray(photos)||photos.length>5||photos.some(p=>typeof p!=='string'||!p))throw new Error('Choose up to five photos');
+  if(input.dishes!==undefined){
+    if(!Array.isArray(input.dishes)||input.dishes.length>5)throw new Error('Invalid dishes');
+    const seen=new Set();
+    for(const dish of input.dishes){
+      if(!dish||!photos.includes(dish.photo)||seen.has(dish.photo)||typeof dish.name!=='string'||dish.name.length>80)throw new Error('Invalid dish');
+      seen.add(dish.photo);
+      for(const key of ['weight','kcal'])if(dish[key]!==null&&dish[key]!==undefined&&dish[key]!=='')num(dish[key],key,0,99999,key==='kcal');
+      for(const key of ['carbs','protein','fat','fiber'])if(dish[key]!==null&&dish[key]!==undefined&&dish[key]!=='')num(dish[key],key,0,9999);
+      if(dish.container){if(!dish.container.id||typeof dish.container.name!=='string')throw new Error('Invalid container');num(dish.container.grams,'Container weight',.001,1999.9);}
+    }
+  }
   const macros={};for(const key of ['carbs','protein','fat','fiber'])macros[key]=String(input[key]??'').trim()?num(input[key],key,0,9999):null;
   return {...input,name,weight,kcal:input.autoSaved&&input.kcal===null?null:num(input.kcal,'Calories',0,99999,true),rating:num(input.rating,'Rating',1,5,true),...macros,photos:[...photos],timestampUtc:Math.floor(date.getTime()/1000),notes:String(input.notes||'').slice(0,400),updatedAt:Date.now()};
 }
+export const mealContent=r=>JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k])=>!['sync','updatedAt'].includes(k)).sort(([a],[b])=>a.localeCompare(b))));
 export class JournalStore {
-  constructor(api,{memory=false}={}){this.api=api;this.memory=memory;this.listeners=new Set();this.data={version:1,profile:null,plans:[],records:[],containers:[]};this.error='';if(!memory){try{const raw=api.getStorageSync(JOURNAL_KEY);if(raw){const data=typeof raw==='string'?JSON.parse(raw):raw;if(data.version!==1||!Array.isArray(data.records)||!Array.isArray(data.containers)||!Array.isArray(data.plans))throw new Error('Invalid journal');for(const r of data.records)validateMeal(r);for(const p of data.plans){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date))throw new Error('Invalid plan');estimatePlan(p.profile);}if(data.profile)estimatePlan(data.profile);this.data=data;}}catch{this.error='Your saved journal could not be read. It has not been overwritten.';}}}
-  commit(next){if(this.error)throw new Error(this.error);if(!this.memory)this.api.setStorageSync(JOURNAL_KEY,JSON.stringify(next));this.data=next;for(const fn of this.listeners)fn(this.data);}
+  constructor(api,{memory=false,storageKey=JOURNAL_KEY}={}){this.api=api;this.storageKey=storageKey;this.memory=memory;this.profileRevision=0;this.listeners=new Set();this.data={version:1,profile:null,plans:[],records:[],containers:[]};this.error='';if(!memory&&storageKey){try{const raw=api.getStorageSync(storageKey);if(raw){const data=typeof raw==='string'?JSON.parse(raw):raw;if(data.version!==1||!Array.isArray(data.records)||!Array.isArray(data.containers)||!Array.isArray(data.plans))throw new Error('Invalid journal');for(const r of data.records)validateMeal(r);for(const p of data.plans){if(!/^\d{4}-\d{2}-\d{2}$/.test(p.date))throw new Error('Invalid plan');estimatePlan(p.profile);}if(data.profile)estimatePlan(data.profile);this.data=data;}}catch{this.error='Your saved journal could not be read. It has not been overwritten.';}}}
+  commit(next){if(this.error)throw new Error(this.error);if(!this.memory){if(!this.storageKey)throw new Error('Sign in before saving.');this.api.setStorageSync(this.storageKey,JSON.stringify(next));}this.data=next;for(const fn of this.listeners)fn(this.data);}
+  switchOwner(ownerId){if(this.ownerId===ownerId)return;const key=JOURNAL_KEY+':'+ownerId,next=new JournalStore(this.api,{storageKey:key});this.ownerId=ownerId;this.storageKey=key;this.data=next.data;this.error=next.error;this.profileRevision++;for(const fn of this.listeners)fn(this.data);}
+  clearProfile(){this.profileRevision++;this.commit({...this.data,profile:null,plans:[]});}
   onChange(fn){this.listeners.add(fn);return ()=>this.listeners.delete(fn);}
-  saveProfile(form){const profile=estimatePlan(form),date=dayKey();this.commit({...this.data,profile,plans:[...this.data.plans.filter(p=>p.date!==date),{date,target:profile.target,tdee:profile.tdee,profile}].sort((a,b)=>a.date.localeCompare(b.date))});return profile;}
+  saveProfile(form){if(this.ownerId&&form.source==='server'&&form.ownerId!==this.ownerId)throw new Error('Profile belongs to another account');this.profileRevision++;const profile=estimatePlan(form),date=dayKey();this.commit({...this.data,profile,plans:[...this.data.plans.filter(p=>p.date!==date),{date,target:profile.target,tdee:profile.tdee,profile}].sort((a,b)=>a.date.localeCompare(b.date))});return profile;}
   planFor(date){const plans=this.data.plans.filter(p=>p.date<=date);return plans[plans.length-1]||null;}
-  saveMeal(input){const record=validateMeal(input);this.commit({...this.data,records:[...this.data.records.filter(r=>r.id!==record.id),record].sort((a,b)=>b.timestampUtc-a.timestampUtc)});return record;}
+  saveMeal(input){const record=validateMeal(input),previous=this.data.records.find(r=>r.id===record.id);
+    if(previous){
+      record.sync={...previous.sync,...record.sync};
+      if(mealContent(previous)!==mealContent(record))record.sync=Object.fromEntries(Object.keys(record.sync).map(id=>[id,'pending']));
+    }
+    this.commit({...this.data,records:[...this.data.records.filter(r=>r.id!==record.id),record].sort((a,b)=>b.timestampUtc-a.timestampUtc)});return record;}
   removeMeal(id){const record=this.data.records.find(r=>r.id===id),devices=Object.keys(record?.sync||{});this.commit({...this.data,records:this.data.records.filter(r=>r.id!==id),deletions:[...(this.data.deletions||[]),...devices.map(deviceId=>({id,deviceId}))]});}
   forgetDevice(ids){const removed=new Set(ids);this.commit({...this.data,records:this.data.records.map(record=>({...record,sync:Object.fromEntries(Object.entries(record.sync||{}).filter(([id])=>!removed.has(id)))})),deletions:(this.data.deletions||[]).filter(row=>!removed.has(row.deviceId))});}
   clearDeletion(id,deviceId){this.commit({...this.data,deletions:(this.data.deletions||[]).filter(r=>r.id!==id||r.deviceId!==deviceId)});}
   markSync(id,deviceId,state){const record=this.data.records.find(r=>r.id===id);if(record)this.saveMeal({...record,sync:{...(record.sync||{}),[deviceId]:state}});}
-  saveContainer(container){const name=String(container.name||'').trim();if(!name||name.length>40)throw new Error('Enter a container name');const grams=num(container.grams,'Container weight',.001,1999.9);if(!container.id)throw new Error('Missing container ID');this.commit({...this.data,containers:[...this.data.containers.filter(c=>c.id!==container.id),{id:container.id,name,grams}]});}
+  saveContainer(container){if(!container.photo)throw new Error('Add a container photo');if(!this.data.containers.some(c=>c.id===container.id)&&this.data.containers.length>=50)throw new Error('You can save up to 50 containers');const name=String(container.name||'').trim();if(!name||name.length>64)throw new Error('Enter a container name');const grams=num(container.grams,'Container weight',.001,1999);if(!container.id)throw new Error('Missing container ID');this.commit({...this.data,containers:[...this.data.containers.filter(c=>c.id!==container.id),{id:container.id,name,grams,...(typeof container.photo==='string'&&container.photo?{photo:container.photo}:{})}]});}
   removeContainer(id){this.commit({...this.data,containers:this.data.containers.filter(c=>c.id!==id)});}
   summary(date=dayKey()){
     const records=this.data.records.filter(r=>r.date===date),plan=this.planFor(date),target=plan?.target??null,tdee=plan?.tdee??null;
     const calorieRecordCount=records.filter(r=>r.kcal!==null).length,consumed=records.reduce((sum,r)=>sum+(r.kcal??0),0),remaining=target===null?null:target-consumed;
-    const nutrients=['carbs','protein','fat','fiber'].map((key,i)=>{const known=records.filter(r=>r[key]!==null&&r[key]!==undefined),total=known.reduce((s,r)=>s+r[key],0),p=plan?.profile,goal=p?key==='fiber'?p.fiber:Math.round(p.target*p[key]/100/(key==='fat'?9:4)):null;return {key,label:['Carbs','Protein','Fat','Fiber'][i],total:Math.round(total*10)/10,goal,partial:known.length!==records.length,progress:goal?Math.min(100,total/goal*100):0};});
+    const nutrients=['carbs','protein','fat','fiber'].map((key,i)=>{const known=records.filter(r=>r[key]!==null&&r[key]!==undefined),total=known.reduce((s,r)=>s+r[key],0),p=plan?.profile,goal=p?(p.nutrientTargets?.[key]??(key==='fiber'?p.fiber:Math.round(p.target*p[key]/100/(key==='fat'?9:4)))):null;return {key,label:['Carbs','Protein','Fat','Fiber'][i],total:Math.round(total*10)/10,goal,partial:known.length!==records.length,progress:goal?Math.min(100,total/goal*100):0};});
     return {date,records,consumed,target,tdee,remaining,progress:target?Math.min(100,consumed/target*100):0,tone:remaining===null||remaining>=0?'normal':consumed<=tdee?'warning':'danger',nutrients,calorieRecordCount,recordCount:records.length};
   }
 }

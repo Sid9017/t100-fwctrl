@@ -1,0 +1,12 @@
+{
+  "component": true,
+  "usingComponents": {
+    "scroll-surface": "/components/scroll-surface/index",
+    "container-control": "/components/container-control/index",
+    "scalebot": "/pairing/scalebot/index",
+    "scale-readout": "/components/scale-readout/index"
+  },
+  "componentPlaceholder": {
+    "scalebot": "view"
+  }
+}

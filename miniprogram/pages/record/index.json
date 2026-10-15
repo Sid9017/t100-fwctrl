@@ -3,7 +3,8 @@
   "disableScroll": true,
   "usingComponents": {
     "scroll-surface": "/components/scroll-surface/index",
-    "meal-sky": "/pairing/meal-sky/index"
+    "meal-sky": "/pairing/meal-sky/index",
+    "dish-editor": "/components/dish-editor/index"
   },
   "componentPlaceholder": {
     "meal-sky": "view"

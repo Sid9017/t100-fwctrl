@@ -2,6 +2,11 @@
   "navigationBarTitleText": "KCALACK",
   "disableScroll": true,
   "usingComponents": {
-    "scroll-surface": "/components/scroll-surface/index"
+    "scroll-surface": "/components/scroll-surface/index",
+    "scalebot": "/pairing/scalebot/index",
+    "nutrition-rings": "/components/nutrition-rings/index"
+  },
+  "componentPlaceholder": {
+    "scalebot": "view"
   }
 }

@@ -1,0 +1,30 @@
+<view class="container-reveal" bindanimationend="revealFinished">
+  <scroll-view class="container-dock" scroll-into-view="{{dockScrollTarget}}" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="container-dock-items">
+      <button hover-class="dock-pressed" hover-start-time="0" hover-stay-time="120" class="container-tile {{pendingContainerId === item.id ? 'is-pending' : ''}} {{enteringContainerId === item.id ? 'is-entering' : ''}} {{expandedContainerId === item.id ? 'is-expanded' : 'is-collapsed'}} {{(selectionMode ? selectedContainerId : containerState.uuid) === item.id ? 'is-selected' : ''}}" wx:for="{{containerLibrary}}" wx:key="id" id="container-{{item.id}}" data-id="{{item.id}}" bindanimationend="containerEntryAnimationEnd" bindtap="tapContainer" disabled="{{working}}" aria-expanded="{{expandedContainerId === item.id}}" aria-label="{{(expandedContainerId === item.id ? 'Edit ' : 'Show ')+item.name+', '+item.grams+' grams'}}"><view class="container-avatar"><image wx:if="{{item.photo}}" class="container-photo" src="{{item.photo}}" mode="aspectFill" aria-hidden="true"/><text wx:else class="container-initial" aria-hidden="true">{{item.initial}}</text></view><view class="container-tile-info"><text class="container-tile-name">{{item.name}}</text><text class="container-tile-weight">{{item.grams}} g</text></view></button>
+      <button wx:if="{{selectionMode && selectedContainerId}}" class="container-clear" bindtap="clearSelection" disabled="{{working}}" aria-label="Stop using this container"><image class="ui-icon" src="/assets/icons/x.svg"/></button>
+      <button hover-class="dock-pressed" hover-start-time="0" hover-stay-time="120" class="container-tile container-add {{containerLibrary.length ? 'is-compact' : 'is-empty'}}" bindtap="openContainers" disabled="{{working}}" aria-label="Add container"><image class="ui-icon" src="/assets/icons/plus.svg" aria-hidden="true"/><text wx:if="{{!containerLibrary.length}}">Add container</text></button>
+    </view>
+  </scroll-view>
+</view>
+<view class="scanner-overlay {{containerSheetClosing ? 'is-closing' : 'is-opening'}}" wx:if="{{containerSheetMounted}}">
+  <view class="scanner-mask" bindtap="closeContainers"/>
+  <view class="scanner-sheet" bindanimationend="containerSheetAnimationEnd">
+    <view class="scanner-header"><text class="sheet-title">{{editingContainerId ? 'Edit container.' : 'Add container.'}}</text><button class="sheet-close" disabled="{{working}}" aria-label="Close containers" bindtap="closeContainers"><image class="ui-icon" aria-hidden="true" src="/assets/icons/x.svg"/></button></view>
+    <scroll-surface class="scanner-results" refresh-key="{{containerPhoto+':'+error}}"><view class="scanner-content"><view class="operation-card">
+      <view class="container-photo-name">
+        <button class="container-photo-picker" bindtap="chooseContainerPhoto" disabled="{{working || photoBusy}}" aria-label="{{containerPhoto ? 'Change container photo' : 'Take container photo'}}">
+          <image wx:if="{{containerPhoto}}" class="container-photo" src="{{containerPhoto}}" mode="aspectFill" aria-hidden="true"/>
+          <text wx:else class="container-initial" aria-hidden="true">{{containerInitial}}</text>
+          <view class="container-photo-edit"><image class="container-photo-edit-icon" src="/assets/icons/camera-light.svg" aria-hidden="true"/></view>
+        </button>
+        <label class="field container-name-field">Name<input maxlength="64" value="{{containerName}}" bindinput="onContainerName" disabled="{{working}}" placeholder="{{defaultContainerName}}" placeholder-style="color:#6b7064"/></label>
+      </view>
+      <label class="field">Empty weight · g<input type="digit" value="{{form.container}}" bindinput="containerWeightInput" disabled="{{working}}" placeholder="—"/></label>
+      <view class="error" wx:if="{{error}}">{{error}}</view>
+      <button class="primary" loading="{{working}}" disabled="{{working || photoBusy}}" bindtap="saveContainer">Save container</button>
+      <button wx:if="{{editingContainerId}}" class="container-delete" disabled="{{working || photoBusy}}" bindtap="deleteContainer">Delete</button>
+    </view></view></scroll-surface>
+  </view>
+</view>
+<view class="error" wx:if="{{error && !containerSheetMounted}}">{{error}}</view>

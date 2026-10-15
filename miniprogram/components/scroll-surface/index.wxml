@@ -2,7 +2,4 @@
   <scroll-view id="viewport" class="viewport" scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{scrollTop}}" scroll-with-animation="{{animateScroll}}" bindscroll="onScroll" bindtouchstart="onTouchStart" bindtouchend="onTouchEnd" bindtouchcancel="onTouchEnd">
     <view id="content" class="content" style="min-height:{{viewportHeight}}px"><slot/></view>
   </scroll-view>
-  <view class="scroll-rail" wx:if="{{overflow}}" aria-hidden="true">
-    <view wx:for="{{ticks}}" wx:key="*this" class="tick {{index === activeIndex ? 'active' : index === activeIndex-1 || index === activeIndex+1 ? 'adjacent' : ''}}"/>
-  </view>
 </view>

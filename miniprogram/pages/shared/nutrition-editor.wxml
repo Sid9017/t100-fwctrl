@@ -1,0 +1,13 @@
+<template name="nutrition-editor">
+    <label class="dish-calories"><view class="calorie-heading"><text>Calories</text><text class="analysis-tag" wx:if="{{analyzing}}" aria-live="polite">{{analysisPhase || 'Calculating…'}}</text></view><text class="nutrition-value">{{kcal === null || kcal === '' ? '—' : kcal}}</text><text>kcal</text></label>
+    <view class="analysis-error" wx:if="{{analysisError}}"><text>{{analysisError}}</text><button bindtap="recalculate" aria-label="Retry food analysis"><image class="ui-icon" src="/assets/icons/refresh.svg"/></button></view>
+    <button class="nutrition-toggle" bindtap="toggleNutrition" aria-expanded="{{nutritionOpen}}" aria-label="{{nutritionOpen ? 'Collapse nutrients' : 'Expand nutrients'}}"><text>Nutrients</text><view class="nutrition-triangle {{nutritionOpen ? 'is-open' : ''}}" aria-hidden="true"/></button>
+    <view class="dish-nutrients {{nutritionOpen ? 'is-open' : ''}}"><view class="nutrient-inner">
+     <label wx:for="{{nutrients}}" wx:key="key" class="nutrient-field"><view class="nutrient-label"><view class="nutrient-dot" style="background:{{item.color}}"/><view class="nutrient-heading"><text>{{item.label}}</text><text class="analysis-tag" wx:if="{{analyzing}}">{{analysisPhase || 'Calculating…'}}</text></view></view><text class="nutrition-value">{{item.key === 'carbs' ? (carbs === null || carbs === '' ? '—' : carbs) : item.key === 'protein' ? (protein === null || protein === '' ? '—' : protein) : item.key === 'fat' ? (fat === null || fat === '' ? '—' : fat) : (fiber === null || fiber === '' ? '—' : fiber)}}</text><text>g</text></label>
+    </view></view>
+    <view wx:if="{{ingredients}}" class="dish-ingredients"><text class="ingredients-label">Ingredients</text><text>{{ingredients}}</text></view>
+    <label wx:if="{{showRecalculate}}" class="dish-correction">Correct ingredients<textarea value="{{correction}}" bindinput="correctionField" maxlength="200" disabled="{{analyzing}}" placeholder="e.g. grilled chicken, no dressing" auto-height aria-label="Ingredient correction"/></label>
+    <view class="correction-action {{showRecalculate && correction ? 'is-open' : ''}}" aria-hidden="{{!showRecalculate || !correction}}">
+      <view class="correction-action-inner"><button class="nutrition-recalculate" bindtap="recalculate" disabled="{{analyzing || !showRecalculate || !correction}}">{{analyzing ? 'Calculating…' : 'Apply correction'}}</button></view>
+    </view>
+</template>

@@ -1,0 +1,67 @@
+.device-item { display:flex; text-align:left; justify-content:space-between; width:100%; padding:28rpx; margin-bottom:16rpx; background:#fffefb; border-radius:32rpx; }
+.scanner-overlay { position:fixed; left:0; right:0; top:0; bottom:0; z-index:100; }
+.scanner-mask { position:absolute; left:0; right:0; top:0; bottom:0; background:rgba(36,43,29,.35); }
+.scanner-sheet { position:absolute; left:0; right:0; bottom:0; height:84%; max-width:540px; margin:0 auto; border-radius:40rpx 40rpx 0 0; background:#f5f6ed; display:flex; flex-direction:column; overflow:hidden; }
+.scanner-header { flex:none; display:flex; justify-content:space-between; align-items:center; gap:20rpx; padding:36rpx 32rpx 16rpx; }
+.scanner-header .eyebrow { margin-bottom:8rpx; font-size:22rpx; letter-spacing:2rpx; }
+.sheet-title { display:block; font-size:44rpx; line-height:1.2; font-weight:650; letter-spacing:-1rpx; }
+.sheet-close { flex:none; width:48px; height:48px; padding:0; font-size:40rpx; font-weight:400; background:#e9eddf; border-radius:50%; }
+.scanner-results { flex:1; height:0; min-height:0; width:100%; }
+.scanner-content { padding:0 32rpx 24rpx; }
+.scanner-sheet .device-item { padding:28rpx 24rpx; gap:12rpx; border-radius:28rpx; }
+.scanner-sheet .device-connect { max-width:160rpx; font-size:24rpx; text-align:right; line-height:1.4; }
+.scanner-sheet .device-info { gap:10rpx; }
+.operation-card,.binding-card { border-radius:30rpx; padding:28rpx; margin-bottom:24rpx; background:#fffefb; }
+.container-dock { width:100%; height:calc(64px + 24rpx); white-space:nowrap; }
+.container-dock-items { display:inline-flex; align-items:center; gap:16rpx; min-width:100%; padding:12rpx 6rpx; box-sizing:border-box; }
+.container-dock-items .container-tile { flex:none; width:auto; min-height:64px; height:64px; padding:12px; box-sizing:border-box; overflow:hidden; border-radius:999rpx; background:#f7f7f7 !important; color:#353535 !important; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:0; transform-origin:center bottom; transition:width 260ms cubic-bezier(.22,.68,0,1),transform 180ms cubic-bezier(.2,.7,.2,1),box-shadow 180ms ease; }
+.container-dock-items .container-tile.is-collapsed { min-width:64px; }
+.container-tile.is-selected { box-shadow:inset 0 0 0 2rpx #9caf73; }
+.container-dock-items .container-tile.dock-pressed { transform:translateY(-4rpx) scale(1.04); box-shadow:0 6rpx 16rpx rgba(53,53,53,.1); }
+.container-tile-name { max-width:100%; overflow:hidden; text-overflow:ellipsis; font-size:25rpx; }
+.container-tile-weight { color:#656b5f; font-size:22rpx; font-weight:400; }
+.container-dock-items .container-add { width:280rpx; flex-direction:row; align-items:center; gap:12rpx; font-size:25rpx; }
+.container-dock-items .container-add.is-compact { width:64px; padding:0; justify-content:center; gap:0; }
+.container-dock-items .container-add.is-empty { justify-content:center; }
+.container-add .ui-icon { width:24px; height:24px; }
+.container-reveal { height:calc(64px + 24rpx); overflow:hidden; animation:container-expand 380ms cubic-bezier(.22,.68,0,1) both; }
+@keyframes container-expand { from { height:0; opacity:0; transform:translateY(-12rpx); } to { height:calc(64px + 24rpx); opacity:1; transform:translateY(0); } }
+@media(prefers-reduced-motion:reduce){.container-reveal { animation-duration:1ms; }.container-dock-items .container-tile { transition:none; }.container-dock-items .container-tile.dock-pressed { transform:none; }}
+
+.container-avatar { width:40px; height:40px; flex:none; border-radius:50%; overflow:hidden; background:#eef1e5; display:flex; align-items:center; justify-content:center; }
+.container-photo { width:100%; height:100%; display:block; border-radius:50%; }
+.container-initial { font-size:30rpx; font-weight:600; line-height:1; color:#656b5f; }
+.container-photo-picker .container-initial { font-size:40rpx; }
+.container-tile-info { display:flex; flex-direction:column; gap:4rpx; width:auto; max-width:0; min-width:0; margin-left:0; overflow:hidden; white-space:nowrap; text-align:left; opacity:0; transition:max-width 260ms cubic-bezier(.22,.68,0,1),margin-left 260ms cubic-bezier(.22,.68,0,1),opacity 160ms ease; }
+.is-expanded .container-tile-info { max-width:140rpx; margin-left:14rpx; opacity:1; }
+.container-photo-name { display:flex; gap:24rpx; align-items:center; margin-bottom:20rpx; }
+.container-photo-picker { position:relative; flex:none; width:112rpx; height:112rpx; min-height:0; padding:0; border-radius:50%; background:#eef1e5; overflow:visible; }
+.container-camera { width:48rpx; height:48rpx; }
+.container-photo-edit { position:absolute; right:-2rpx; bottom:-2rpx; width:36rpx; height:36rpx; border-radius:50%; background:#353535; display:flex; align-items:center; justify-content:center; border:3rpx solid #fffefb; }
+.container-photo-edit-icon { width:22rpx; height:22rpx; }
+.container-name-field { flex:1; min-width:0; margin:0; }
+
+.container-delete { margin-top:16rpx; color:#b54739; background:transparent; border-radius:999rpx; }
+
+@media(prefers-reduced-motion:reduce){.container-tile-info { transition:none; }}
+
+.is-opening .scanner-sheet { animation:container-sheet-in 320ms cubic-bezier(.22,.68,0,1) both; }
+.is-opening .scanner-mask { animation:container-mask-in 260ms ease both; }
+.is-closing .scanner-sheet { animation:container-sheet-out 240ms cubic-bezier(.4,0,1,1) both; pointer-events:none; }
+.is-closing .scanner-mask { animation:container-mask-out 240ms ease both; }
+@keyframes container-sheet-in { from { transform:translateY(100%); } to { transform:translateY(0); } }
+@keyframes container-sheet-out { from { transform:translateY(0); } to { transform:translateY(100%); } }
+@keyframes container-mask-in { from { opacity:0; } to { opacity:1; } }
+@keyframes container-mask-out { from { opacity:1; } to { opacity:0; } }
+@media(prefers-reduced-motion:reduce){.scanner-sheet,.scanner-mask { animation-duration:1ms !important; }}
+
+.container-dock-items .container-tile.is-pending { opacity:0; pointer-events:none; }
+.container-dock-items .container-tile.is-entering { animation:container-dock-in 480ms cubic-bezier(.22,.68,0,1) both; }
+@keyframes container-dock-in {
+  0% { opacity:0; transform:translateY(22px) scale(.65); }
+  65% { opacity:1; transform:translateY(-3px) scale(1.06); }
+  100% { opacity:1; transform:translateY(0) scale(1); }
+}
+@media(prefers-reduced-motion:reduce){.container-dock-items .container-tile.is-entering { animation-duration:1ms; }}
+
+.container-clear { flex:none;width:44px;height:44px;padding:0;background:transparent; }

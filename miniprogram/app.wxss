@@ -55,3 +55,10 @@ button.text-button { width:auto; background:transparent; color:#596529; padding:
   100% { transform:rotate(720deg); }
 }
 @media (prefers-reduced-motion:reduce) { .add-device-orbit { animation:none; } }
+
+/* Main sections share one header grid, regardless of the controls on the right. */
+.main-top { height:108rpx; min-height:48px; margin-bottom:28rpx; gap:12rpx; }
+.main-top .wordmark { font-size:28rpx; letter-spacing:1rpx; line-height:40rpx; }
+.main-top .brand-lockup { gap:12rpx; }
+.main-top ~ .title,.main-top + .home-greeting .title,.main-top + .report-content > .title { line-height:1.15; margin-top:0; }
+@media(max-width:350px){.main-top .wordmark { font-size:26rpx; }}

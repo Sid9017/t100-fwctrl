@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {runInNewContext} from 'node:vm';
 const source=await readFile('miniprogram/components/nutrition-rings/index.js','utf8');
+const palette={exports:{}};runInNewContext(await readFile('miniprogram/utils/nutrition-rings.js','utf8'),{module:palette});
 function setup(){
- let definition;runInNewContext(source,{Component:d=>definition=d,Uint8Array,wx:{arrayBufferToBase64:b=>Buffer.from(b).toString('base64')}});
+ let definition,now=0,timerId=0;const timers=new Map();runInNewContext(source,{Component:d=>definition=d,require:()=>palette.exports,Uint8Array,Date:{now:()=>now},setTimeout:fn=>{timers.set(++timerId,fn);return timerId;},clearTimeout:id=>timers.delete(id),wx:{arrayBufferToBase64:b=>Buffer.from(b).toString('base64')}});
  const component={...definition.methods,data:structuredClone(definition.data),setData(p){Object.assign(this.data,p);},createSelectorQuery(){return {select(){return this;},boundingClientRect(fn){fn({left:10,top:20,width:150,height:150});return this;},exec(){}};}};
  component.updateNutrients(['carbs','protein','fat','fiber'].map((key,i)=>({key,total:i*10,goal:100,progress:i*10,partial:i===0})));
+ component.advance=ms=>{now+=ms;const pending=[...timers.values()];timers.clear();pending.forEach(fn=>fn());};component.pending=()=>timers.size;component.lifecycle=definition;
  return component;
 }
 const svg=ring=>Buffer.from(ring.source.split(',')[1],'base64').toString();
@@ -53,8 +55,8 @@ test('100%, 125%, and multiple laps retain their exact totals and zero goals nev
 
 test('all ring layers share one center and adjacent tracks overlap without separator gaps',()=>{
  const c=setup();const tracks=c.data.rings.map(ring=>{
-  const normal=svg(ring),expanded=Buffer.from(ring.expandedSource.split(',')[1],'base64').toString();
-  for(const image of [normal,expanded]){
+  const normal=svg(ring);
+  for(const image of [normal]){
    assert.match(image,/viewBox="0 0 300 300"/);
    assert.match(image,/<circle cx="150" cy="150" r=/);
   }
@@ -62,4 +64,18 @@ test('all ring layers share one center and adjacent tracks overlap without separ
   const radius=Number(track[1]),width=Number(track[2]);return {inner:radius-width/2,outer:radius+width/2};
  });
  for(let i=0;i<tracks.length-1;i++)assert.ok(tracks[i+1].outer>tracks[i].inner,'neighboring tracks must overlap to cover antialiasing seams');
+});
+
+test('selection morphs both stroke edges around a fixed centerline and cancels stale motion',()=>{
+ const c=setup(),width=key=>c.data.rings.find(r=>r.key===key).width;
+ assert.equal(width('carbs'),42);assert.equal(width('protein'),28.5);
+ c.selectNutrient('protein');assert.equal(width('protein'),28.5);
+ c.advance(140);assert.equal(width('protein'),35.25);assert.equal(width('carbs'),35.25);
+ const frame=svg(c.data.rings[1]);assert.match(frame,/r="98" fill="none" stroke="#[a-f0-9]+" stroke-width="35.25"/);
+ const inner=98-width('protein')/2,outer=98+width('protein')/2;
+ assert.equal((98-28.5/2)-inner,outer-(98+28.5/2));
+ c.selectNutrient('fat');assert.equal(width('protein'),35.25);assert.equal(c.pending(),1);
+ c.advance(280);assert.equal(width('fat'),42);assert.equal(width('protein'),28.5);assert.equal(width('carbs'),28.5);assert.equal(c.pending(),0);
+ c.selectNutrient('fiber');c.lifecycle.pageLifetimes.hide.call(c);assert.equal(c.pending(),0);assert.equal(width('fiber'),42);
+ c.selectNutrient('carbs');c.lifecycle.lifetimes.detached.call(c);assert.equal(c.pending(),0);
 });

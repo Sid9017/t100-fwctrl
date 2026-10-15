@@ -208,34 +208,23 @@ export class DeviceActions {
     });
   }
 
-  async scaleUpdateKcal({ currentKcal, targetKcal, tdeeKcal = targetKcal } = {}) {
-    const [target, current, navigate] = buildFee0CountdownUpdateSequence({
-      currentKcal,
-      targetKcal,
-      tdeeKcal,
-    });
+  async scaleUpdateKcal({ currentKcal, targetKcal, tdeeKcal = targetKcal, navigate = true } = {}) {
+    const sequence = buildFee0CountdownUpdateSequence({currentKcal, targetKcal, tdeeKcal, navigate});
     return this.runGattAction('Countdown update', async () => {
       const { connection, entry } = this.requireConnectedEntry();
-      const { services, characteristics } = await this.discoverAll(connection);
+      const { characteristics } = await this.discoverAll(connection);
       const { auth8 } = await this.runFeeSessionAuth(connection, entry, characteristics, true);
-      const wireCurrent = buildFee0VendorWirePayload(current, { auth8 });
-      const wireTarget = buildFee0VendorWirePayload(target, { auth8 });
-      const wireNavigate = buildFee0VendorWirePayload(navigate, { auth8 });
-      await this.session.writeVendorPayload(connection, wireTarget, {
-        requireWriteResponse: true,
-      });
-      await delay(VENDOR_TOPIC_SETTLE_MS);
-      await this.session.writeVendorPayload(connection, wireCurrent, {
-        requireWriteResponse: true,
-      });
-      await delay(VENDOR_TOPIC_SETTLE_MS);
-      await this.session.writeVendorPayload(connection, wireNavigate, {
-        requireWriteResponse: true,
-      });
-      this._previewCommit?.('countdown', {currentKcal:Number(currentKcal), targetKcal:Number(targetKcal),tdeeKcal:Number(tdeeKcal)});
+      for (let index = 0; index < sequence.length; index++) {
+        if (index) await delay(VENDOR_TOPIC_SETTLE_MS);
+        await this.session.writeVendorPayload(connection, buildFee0VendorWirePayload(sequence[index], { auth8 }), {
+          requireWriteResponse: true,
+        });
+      }
+      // Background synchronization must not navigate either the device or its preview.
+      if (navigate) this._previewCommit?.('countdown', {currentKcal:Number(currentKcal), targetKcal:Number(targetKcal),tdeeKcal:Number(tdeeKcal)});
       return {
         ok: true,
-        message: `Countdown updated and opened: remaining ${Number(currentKcal)}, target ${Number(targetKcal)}, TDEE ${Number(tdeeKcal)}`,
+        message: `Countdown updated${navigate ? ' and opened' : ''}: remaining ${Number(currentKcal)}, target ${Number(targetKcal)}, TDEE ${Number(tdeeKcal)}`,
       };
     });
   }

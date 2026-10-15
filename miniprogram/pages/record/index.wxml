@@ -1,34 +1,40 @@
-<view class="app-page theme-{{themeProfile}}"><scroll-surface refresh-key="{{summary+':'+detailsOpen+':'+form.photos.length+':'+error+':'+feedback}}"><view class="page-body {{summary ? 'has-footer' : ''}}">
-  <block wx:if="{{!summary}}">
+<import src="../shared/nutrition-editor.wxml"/>
+<view class="app-page theme-{{themeProfile}}"><scroll-surface reset-key="{{calculationView}}" refresh-key="{{summary+':'+detailsOpen+':'+form.photos.length+':'+error+':'+feedback+':'+connected+':'+containerRevealVersion+':'+selectedPhotoIndex+':'+nutritionOpen+':'+analysisError+':'+analyzing+':'+selectedDish.analysis.ingredients+':'+form.mealAnalysis.text}}"><view class="page-body">
+  <block>
     <view class="meal-header">
-    <button class="meal-heading" bindtap="nextMeal" disabled="{{loading || deletingPhotoIndex >= 0 || !form.id}}" aria-live="polite" aria-label="{{form.meal+', switch to '+meals[(mealIndex+1)%4]}}"><text wx:for="{{meals}}" wx:key="*this" class="title meal-title {{item === form.meal ? 'is-active' : ''}}" aria-hidden="{{item !== form.meal}}">{{item}}</text></button>
-      <view class="rating-row" id="meal-rating" aria-label="Meal rating" catchtouchstart="ratingTouchStart" catchtouchmove="ratingTouchMove" catchtouchend="ratingTouchEnd" catchtouchcancel="ratingTouchEnd"><button wx:for="{{ratingDots}}" wx:key="*this" class="meal-rating {{item <= form.rating ? 'active' : ''}}" data-value="{{item}}" aria-label="{{item+' out of 5'+(form.rating === item ? ', selected' : '')}}" hover-class="none" catchtap="rating"><view class="rating-dot" data-value="{{item}}" aria-hidden="true"/></button></view>
+    <view wx:if="{{mealLocked}}" class="meal-heading fixed-meal-heading"><text class="title">{{form.meal}}<text class="meal-time"> · {{form.time}}</text></text></view>
+    <button wx:else class="meal-heading" bindtap="nextMeal" aria-disabled="{{analyzing || loading || deletingPhotoIndex >= 0 || !form.id}}" hover-class="none" aria-live="polite" aria-label="{{form.meal+', switch to '+meals[(mealIndex+1)%4]}}"><text wx:for="{{meals}}" wx:key="*this" class="title meal-title {{item === form.meal ? 'is-active' : ''}}" aria-hidden="{{item !== form.meal}}">{{item}}</text></button>
+    <view class="meal-status" aria-live="polite">
+      <text class="meal-status-text status-drag {{wheelDragging && !analyzing ? 'is-visible' : ''}}" aria-hidden="{{!wheelDragging || analyzing}}">Drag fast to analyze</text>
+      <text class="meal-status-text status-analysis {{analyzing ? 'is-visible' : ''}}" aria-hidden="{{!analyzing}}">Analyzing…</text>
+    </view>
     </view>
 
-    <view class="photo-wheel {{!visible ? 'is-paused' : ''}}">
+    <view class="photo-wheel {{wheelFrozen ? 'is-frozen' : ''}} {{!visible ? 'is-paused' : ''}} {{analyzing ? 'is-calculating' : ''}} {{wheelDragging ? 'is-dragging' : ''}} {{wheelArmed ? 'is-armed' : ''}}" style="--orbit-angle:{{orbitAngle}}deg;--counter-angle:{{-orbitAngle}}deg">
       <view class="wheel-sky">
-        <image wx:if="{{!skyReady}}" class="sky-fallback" src="/assets/meals/sky-{{mealIndex}}.svg" aria-hidden="true"/>
-        <meal-sky class="sky-animation" bindready="skyLoaded" bindunavailable="skyUnavailable" meal="{{mealIndex}}" active="{{visible && !summary}}"/>
+        <image wx:if="{{mealLocked || !skyReady}}" class="sky-fallback" src="/assets/meals/sky-{{mealIndex}}.svg" aria-hidden="true"/>
+        <meal-sky wx:if="{{!mealLocked}}" class="sky-animation" bindready="skyLoaded" bindunavailable="skyUnavailable" meal="{{mealIndex}}" active="{{visible && !summary}}"/>
       </view>
 
-      <view class="photo-orbit">
-        <view wx:for="{{photoSlots}}" wx:key="index" class="orbit-slot slot-{{item.index}} {{item.path ? 'has-photo' : ''}}"><view class="upright-photo">
+      <view id="meal-orbit" class="photo-orbit">
+        <view wx:for="{{photoSlots}}" wx:key="index" class="orbit-slot slot-{{item.index}} {{item.path ? 'has-photo' : ''}}"><view id="wheel-counter-{{item.index}}" class="upright-photo">
           <view wx:if="{{item.path}}" class="photo-item {{item.status === 'ready' ? 'is-loaded' : item.status === 'failed' ? 'is-failed' : ''}} {{selectedPhotoIndex === item.index ? 'is-selected' : ''}} {{deletingPhotoIndex === item.index ? 'is-removing' : ''}}">
-            <view class="photo-frame" data-index="{{item.index}}" data-path="{{item.path}}" catchtap="selectPhoto" bindlongpress="previewPhoto" aria-role="button" aria-label="{{'Photo '+(item.index+1)+(selectedPhotoIndex === item.index ? ', selected' : '')}}"><image mode="aspectFill" class="orbit-photo" src="{{item.path}}" data-index="{{item.index}}" data-path="{{item.path}}" bindload="photoLoaded" binderror="photoFailed"/></view>
-            <view wx:if="{{selectedPhotoIndex === item.index}}" class="remove-photo" hover-class="is-pressed" hover-start-time="0" hover-stay-time="80" data-index="{{item.index}}" aria-role="button" aria-label="{{'Remove photo '+(item.index+1)}}" catchtap="removePhoto"><view class="remove-disc"><image class="remove-icon" src="/assets/icons/x-bold.svg" aria-hidden="true"/></view></view>
+            <view class="photo-frame" bindtouchstart="wheelTouchStart" catchtouchmove="wheelTouchMove" bindtouchend="wheelTouchEnd" bindtouchcancel="cancelWheelDrag" data-index="{{item.index}}" data-path="{{item.path}}" catchtap="selectPhoto" aria-role="button" aria-label="{{'Photo '+(item.index+1)+(selectedPhotoIndex === item.index ? ', selected' : '')}}"><image mode="aspectFill" class="orbit-photo" src="{{item.path}}" data-index="{{item.index}}" data-path="{{item.path}}" bindload="photoLoaded" binderror="photoFailed"/></view>
+            <view wx:if="{{!analyzing && selectedPhotoIndex === item.index}}" class="remove-photo" hover-class="is-pressed" hover-start-time="0" hover-stay-time="80" data-index="{{item.index}}" aria-role="button" aria-label="{{'Remove photo '+(item.index+1)}}" catchtap="removePhoto"><view class="remove-disc"><image class="remove-icon" src="/assets/icons/x-bold.svg" aria-hidden="true"/></view></view>
           </view>
         </view></view>
       </view>
-      <view class="capture-layer"><view class="capture-button {{loading || form.photos.length >= 5 ? 'is-disabled' : ''}}" aria-role="button" aria-label="{{form.photos.length < 5 ? 'Add a meal photo' : 'Five-photo limit reached'}}" aria-disabled="{{loading || form.photos.length >= 5}}" catchtap="choosePhoto"><image class="capture-icon" src="/assets/icons/camera-light.svg"/></view></view>
+      <view class="capture-layer"><view class="capture-button center-{{centerMode}} center-{{centerPhase}} {{centerMode === 'camera' && centerPhase === 'idle' && !analyzing && (loading || form.photos.length >= 5) ? 'is-disabled' : ''}}" aria-role="button" aria-label="{{analyzing ? analysisPhase : 'Add a dish photo. Hold to analyze meal.'}}" aria-disabled="{{analyzing || loading}}" catchtap="centerTap" bindlongpress="centerLongPress"><image class="capture-icon" src="/assets/icons/camera-light.svg"/><view class="analysis-heart" aria-hidden="true"><image src="/assets/icons/analysis-heart.svg"/></view></view></view>
     </view>
-    <view class="meal-details {{detailsOpen ? 'is-open' : ''}}">
-      <button class="details-toggle" bindtap="toggleDetails" aria-expanded="{{detailsOpen}}"><text>Description</text><image src="/assets/icons/arrow-right.svg" class="details-arrow" aria-hidden="true"/></button>
-      <view class="details-reveal"><view class="details-content">
-        <textarea class="description-input" value="{{form.name}}" data-field="name" bindinput="field" maxlength="80" placeholder="What’s on your plate?" aria-label="Meal description"/>
-        <view class="form-grid"><label class="field">Weight · g<input type="digit" value="{{form.weight}}" data-field="weight" bindinput="field" placeholder="—"/></label><label class="field">Calories · kcal<input type="number" value="{{form.kcal}}" data-field="kcal" bindinput="field" placeholder="—"/></label></view>
-      </view></view>
-    </view>
+    <view class="dish-total" wx:if="{{!openingDish && form.photos.length && form.dishes}}"><text>{{form.photos.length}} {{form.photos.length === 1 ? 'dish' : 'dishes'}}</text><text>{{form.kcal === '' || form.kcal === null ? '—' : form.kcal}} kcal</text></view>
   </block>
-  <block wx:else><text class="eyebrow">{{form.meal}} · {{form.date}} · {{form.time}}</text><text class="title">{{form.name}}</text><view class="card meal-summary"><view class="big-number">{{form.kcal === '' || form.kcal === null ? '—' : form.kcal}}<text class="number-unit">KCAL</text></view><text class="subtitle">{{form.weight !== null ? form.weight+' g · ' : ''}}Rating {{form.rating}} / 5</text><view class="summary-photos"><image wx:for="{{form.photos}}" wx:key="*this" class="summary-photo" src="{{item}}" mode="aspectFill" data-path="{{item}}" bindtap="previewPhoto"/></view><text class="subtitle" wx:if="{{form.notes}}">{{form.notes}}</text></view><view class="actions"><button class="secondary" disabled="{{loading}}" bindtap="edit">Edit</button><button class="lime" loading="{{loading}}" disabled="{{!canSync || loading}}" bindtap="sync">Send to device</button></view></block>
-  <view class="feedback" wx:if="{{feedback}}">{{feedback}}</view><view class="error" wx:if="{{error}}">{{error}}</view><button class="text-button delete-meal" wx:if="{{editing}}" disabled="{{loading}}" bindtap="remove">Delete meal</button>
-</view></scroll-surface><view wx:if="{{summary}}" class="record-footer"><button class="primary" bindtap="done">Done</button></view></view>
+  <view wx:if="{{analysisError}}" class="error" aria-live="polite">{{analysisError}}</view>
+  <view wx:for="{{!openingDish && selectedDish.analysis ? [selectedDish] : []}}" wx:key="photo" class="card summary-dish-editor">
+   <view class="dish-result-heading"><text class="dish-result-name">{{item.name || 'Dish'}}</text><button bindtap="editSelectedWeight" disabled="{{analyzing}}" aria-label="Edit dish weight and container">{{item.weight || 0}} g<image class="ui-icon" src="/assets/icons/pencil.svg"/></button></view>
+   <template is="nutrition-editor" data="{{kcal:item.kcal,carbs:item.carbs,protein:item.protein,fat:item.fat,fiber:item.fiber,analyzing,analysisPhase,nutritionOpen,nutrients,ingredients:item.analysis.ingredients,correction,showRecalculate:!analysisDirty}}"/>
+  </view>
+  <view wx:if="{{form.mealAnalysis.text}}" class="card meal-analysis"><view class="card-heading"><text>Meal analysis</text></view><text class="meal-analysis-copy">{{form.mealAnalysis.text}}</text></view>
+  <view class="feedback" wx:if="{{feedback}}">{{feedback}}</view><view class="error" wx:if="{{error}}">{{error}}</view>
+</view></scroll-surface>
+<dish-editor wx:if="{{dishEditor}}" record-id="{{dishEditor.id}}" photo-index="{{dishEditor.index}}" demo="{{preview}}" bindclose="dishEditorClosed"/>
+</view>

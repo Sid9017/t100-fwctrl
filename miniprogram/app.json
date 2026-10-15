@@ -5,6 +5,7 @@
     "pages/devices/index",
     "pages/firmware/index",
     "pages/record/index",
+    "pages/dish/index",
     "pages/reports/index",
     "pages/profile/index"
   ],

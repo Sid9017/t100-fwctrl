@@ -94,7 +94,7 @@ class RiveInstance {
       if (!this._artboard) throw new Error('artboard not found: ' + (abName || '(default)'));
 
       const b = this._artboard.bounds;
-      this._bounds = { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
+      this._bounds = this._opts.bounds || { minX: b.minX, minY: b.minY, maxX: b.maxX, maxY: b.maxY };
 
       this._fit = resolveFit(rive, this._opts.fit);
       this._alignment = resolveAlignment(rive, this._opts.alignment);
@@ -304,6 +304,16 @@ class RiveInstance {
     this._anim.apply(1.0);
     this._artboard.advance(0);
     this._drawOnce();
+  }
+
+  /** Change paint animation while retaining the settled geometry of the artboard. */
+  setAnimation(name) {
+    const animation=this._artboard?.animationByName(name);
+    if(!animation)throw new Error('Animation not found: '+name);
+    this._anim?.delete();
+    this._anim=new this._rive.LinearAnimationInstance(animation,this._artboard);
+    this._animName=name;
+    this.seek(0);
   }
 
   get isPlaying() { return this._running && this._playing; }

@@ -8,14 +8,13 @@ async function surface(clock={setTimeout,clearTimeout}){
   const patches=[],s={...definition.methods,...definition,data:structuredClone(definition.data),mounted:true,properties:{snapEdges:false,snapPaused:false},setData(p,cb){Object.assign(this.data,p);patches.push(p);cb?.();}};
   return {s,patches,definition};
 }
-test('scroll ticks follow the real scroll range and clamp elastic overscroll at both ends',async()=>{
+test('native scrolling tracks position and range without indicator bridge updates',async()=>{
   const {s,patches}=await surface();s.viewportHeight=400;
-  s.onScroll({detail:{scrollTop:0,scrollHeight:1200}});assert.equal(s.data.overflow,true);assert.equal(s.data.activeIndex,0);
-  s.onScroll({detail:{scrollTop:400,scrollHeight:1200}});assert.equal(s.data.activeIndex,3);const count=patches.length;
-  s.onScroll({detail:{scrollTop:410,scrollHeight:1200}});assert.equal(patches.length,count,'no redundant bridge updates within the same tick');
-  s.onScroll({detail:{scrollTop:1000,scrollHeight:1200}});assert.equal(s.data.activeIndex,6);
-  s.onScroll({detail:{scrollTop:-80,scrollHeight:1200}});assert.equal(s.data.activeIndex,0);
-  s.onScroll({detail:{scrollTop:0,scrollHeight:400}});assert.equal(s.data.overflow,false);
+  for(const top of [0,400,410,1000,-80]){
+    s.onScroll({detail:{scrollTop:top,scrollHeight:1200}});
+    assert.equal(s.lastTop,top);assert.equal(s.contentHeight,1200);
+  }
+  assert.equal(patches.length,0);
 });
 test('changing wizard steps resets native scroll position and detached surfaces ignore pending measurements',async()=>{
   const {s,patches,definition}=await surface();s.lastTop=280;s.queueMeasure=()=>{};definition.observers.resetKey.call(s);assert.deepEqual(patches.map(p=>p.scrollTop),[280,0]);
@@ -38,7 +37,7 @@ test('report scrolling settles at the nearest page edge only after touch and mom
   clock.advance(1);assert.equal(s.data.scrollTop,0);assert.equal(s.data.animateScroll,true);
   s.onScroll({detail:{scrollTop:0,scrollHeight:1400}});clock.advance(680);assert.equal(s.snapping,false);
   s.onScroll({detail:{scrollTop:650,scrollHeight:1400}});clock.advance(180);assert.equal(s.data.scrollTop,1000);
-  s.onScroll({detail:{scrollTop:1000,scrollHeight:1400}});clock.advance(680);assert.equal(s.data.activeIndex,6);assert.equal(s.snapping,false);
+  s.onScroll({detail:{scrollTop:1000,scrollHeight:1400}});clock.advance(680);assert.equal(s.lastTop,1000);assert.equal(s.snapping,false);
 });
 test('snap yields to another gesture, report transitions and page lifecycle',async()=>{
   const clock=fakeClock(),{s,definition,patches}=await surface(clock);s.properties.snapEdges=true;s.viewportHeight=400;

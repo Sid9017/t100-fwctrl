@@ -1,17 +1,12 @@
-const RING_SIZE=300,TRACK_WIDTH=28.5,SELECTED_WIDTH=34;
-const TYPES=[
-  {key:'carbs',name:'Carbohydrates',color:'#ff126f',tip:'#ff4095',track:'#4e0926',radius:126},
-  {key:'protein',name:'Protein',color:'#b8f500',tip:'#d1ff43',track:'#2f3d08',radius:98},
-  {key:'fat',name:'Fat',color:'#00ddc3',tip:'#51f4df',track:'#063b35',radius:70},
-  {key:'fiber',name:'Fiber',color:'#57a1ff',tip:'#8ac2ff',track:'#142b48',radius:42}
-];
+const RING_SIZE=300,TRACK_WIDTH=28.5,SELECTED_WIDTH=42;
+const {TYPES}=require('../../utils/nutrition-rings');
 function blend(from,to,t){
   return '#'+[1,3,5].map(i=>Math.round(parseInt(from.slice(i,i+2),16)*(1-t)+parseInt(to.slice(i,i+2),16)*t).toString(16).padStart(2,'0')).join('');
 }
-function ringSource(ring,expanded=false){
+function ringSource(ring,width=TRACK_WIDTH){
   // A shared viewport prevents per-ring rpx rounding from shifting the centers.
   // Slightly overlap adjacent tracks to hide antialiasing seams at all pixel ratios.
-  const size=RING_SIZE,center=size/2,ratio=ring.ratio||0,width=expanded?SELECTED_WIDTH:TRACK_WIDTH,cap=width/2;
+  const size=RING_SIZE,center=size/2,ratio=ring.ratio||0,cap=width/2;
   // Draw completed laps underneath the current lap, keeping the leading cap visible.
   const lap=ratio>0?(ratio%1||1):0,point=angle=>[center+Math.cos(angle)*ring.radius,center+Math.sin(angle)*ring.radius];
   const circle=(color,extra='')=>`<circle cx="${center}" cy="${center}" r="${ring.radius}" fill="none" stroke="${color}" stroke-width="${width}" ${extra}/>`;
@@ -35,23 +30,50 @@ function ringSource(ring,expanded=false){
 }
 Component({
   properties:{nutrients:{type:Array,value:[]}},
-  data:{rings:[],selectedKey:'carbs',selected:null},
+  data:{rings:[],selectedKey:'carbs',selected:null,displayed:null,textFading:false},
   observers:{nutrients(value){this.updateNutrients(value);}},
-  lifetimes:{detached(){this.detached=true;this.ringGesture=null;}},
-  pageLifetimes:{hide(){this.ringGesture=null;this.tapEpoch=(this.tapEpoch||0)+1;}},
+  lifetimes:{detached(){this.detached=true;this.ringGesture=null;this.stopMorph();}},
+  pageLifetimes:{hide(){this.ringGesture=null;this.tapEpoch=(this.tapEpoch||0)+1;this.stopMorph();this.setData({displayed:this.data.selected,textFading:false});this.renderWidths(this.data.rings.map(r=>r.key===this.data.selectedKey?SELECTED_WIDTH:TRACK_WIDTH));}},
   methods:{
     updateNutrients(value){
+      this.stopMorph();
       const rings=TYPES.map(type=>{
         const nutrient=(value||[]).find(n=>n.key===type.key)||{total:0,goal:null,progress:0,partial:false};
         const ratio=nutrient.goal>0?Math.max(0,Number(nutrient.total)||0)/nutrient.goal:0;
         const ring={...nutrient,...type,ratio,percent:nutrient.goal>0?Math.round(ratio*1000)/10:null,excess:nutrient.goal!==null?Math.max(0,Math.round((nutrient.total-nutrient.goal)*10)/10):0};
-        return {...ring,source:ringSource(ring),expandedSource:ringSource(ring,true)};
+        const width=ring.key===this.data.selectedKey?SELECTED_WIDTH:TRACK_WIDTH;
+        return {...ring,width,source:ringSource(ring,width)};
       });
-      this.setData({rings,selected:rings.find(r=>r.key===this.data.selectedKey)||rings[0]});
+      const selected=rings.find(r=>r.key===this.data.selectedKey)||rings[0];
+      this.setData({rings,selected,displayed:selected,textFading:false});
     },
     selectNutrient(key){
       const selected=this.data.rings.find(r=>r.key===key);
-      if(selected&&key!==this.data.selectedKey)this.setData({selectedKey:key,selected});
+      if(selected&&key!==this.data.selectedKey){
+        this.setData({selectedKey:key,selected,textFading:true});this.morphSelection();
+      }
+    },
+    stopMorph(){clearTimeout(this.morphTimer);this.morphTimer=null;},
+    renderWidths(widths){
+      const rings=this.data.rings.map((ring,i)=>{
+        const width=Math.round(widths[i]*1000)/1000;
+        return width===ring.width?ring:{...ring,width,source:ringSource(ring,width)};
+      });
+      this.setData({rings});
+    },
+    morphSelection(){
+      this.stopMorph();
+      const start=Date.now(),from=this.data.rings.map(r=>r.width),to=this.data.rings.map(r=>r.key===this.data.selectedKey?SELECTED_WIDTH:TRACK_WIDTH);
+      const tick=()=>{
+        if(this.detached)return;
+        const t=Math.min(1,(Date.now()-start)/280),e=t*t*(3-2*t);
+        // Replace the complete label only once it has faded out.
+        if(t>=.5&&this.data.textFading)this.setData({displayed:this.data.selected,textFading:false});
+        // Keep each centerline fixed: increasing the stroke expands both edges equally.
+        this.renderWidths(from.map((width,i)=>width+(to[i]-width)*e));
+        if(t<1)this.morphTimer=setTimeout(tick,32);else this.morphTimer=null;
+      };
+      this.morphTimer=setTimeout(tick,16);
     },
     ringAtPoint(x,y,rect){
       const radius=Math.hypot(x-rect.left-rect.width/2,y-rect.top-rect.height/2)*RING_SIZE/rect.width;

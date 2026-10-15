@@ -5,7 +5,8 @@ import {miniSubtle,miniStorage,randomUuid} from '../src/miniprogram/platform.js'
 import {verifyAdmissionToken} from '../src/web/auth.js';
 import {validateSignedOad} from '../src/web/signed-ota-format.js';
 import {signedFixture,trust} from './fixtures/signed-ota.js';
-import {latestMiniFirmware} from '../src/miniprogram/firmware.js';
+import {latestMiniFirmware,OTA_ORIGIN} from '../src/miniprogram/firmware.js';
+import {MiniService} from '../src/miniprogram/service.js';
 import {AuthStore} from '../src/web/auth-store.js';
 import {loadMiniPreset} from '../src/miniprogram/assets.js';
 import {readFile} from 'node:fs/promises';
@@ -41,8 +42,8 @@ test('native latest release downloads only verified same-origin immutable paths 
     else if(!attempts++){o.success({statusCode:404,data:new ArrayBuffer(0)});return;}else data=a.manifest;
     o.success({statusCode:200,data:Uint8Array.from(data).buffer});
   }};
-  const bundle=await latestMiniFirmware(api,{...trust,subtle:miniSubtle});assert.equal(bundle.metadata.version,a.metadata.version);assert.ok(urls.every(url=>url.startsWith('https://t100-ctrl.netlify.app/api/ota/signed/')));
-  await assert.rejects(latestMiniFirmware({request:o=>o.success({statusCode:200,data:Uint8Array.from(Buffer.from(JSON.stringify({...meta(a),downloadUrl:'https://untrusted/firmware.bin'}))).buffer})}),/metadata/);
+  const bundle=await latestMiniFirmware(api,{...trust,subtle:miniSubtle},'https://ota.example');assert.equal(bundle.metadata.version,a.metadata.version);assert.ok(urls.every(url=>url.startsWith('https://ota.example/api/ota/signed/')));
+  await assert.rejects(latestMiniFirmware({request:o=>o.success({statusCode:200,data:Uint8Array.from(Buffer.from(JSON.stringify({...meta(a),downloadUrl:'https://untrusted/firmware.bin'}))).buffer})},undefined,'https://ota.example'),/metadata/);
 });
 test('native countdown/notify commits feed the same WASM functions and preserve fade rendering',async()=>{
   const wasm=await readFile('assets/runtime/preview.wasm'),a=(await WebAssembly.instantiate(wasm,{})).instance.exports,b=(await WebAssembly.instantiate(wasm,{})).instance.exports;
@@ -59,4 +60,11 @@ test('native OAD controls disable unknown/same versions and auth-less devices',(
   for(const patch of [{firmwareSource:'local'},{firmware:'Unknown'},{connected:false},{firmwareInfo:{version:'0x1234'}}])assert.equal(viewModel({...base,firmwareSource:'published',...patch}).hasPublishedUpdate,false);
   assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).sameFirmware,true);assert.equal(viewModel({...base,firmwareInfo:{version:'0x1234'}}).canOad,false);
   for(const patch of [{firmware:'Unknown'},{hasAuth:false},{busy:true},{firmwareLoading:true}])assert.equal(viewModel({...base,...patch}).canOad,false);
+});
+
+test('paused Mini Program remote OTA makes no requests and preserves local firmware',async()=>{
+  assert.equal(OTA_ORIGIN,'');let requests=0;const api={request(){requests++;throw Error('Unexpected OTA request');}};
+  await assert.rejects(latestMiniFirmware(api),/temporarily unavailable/);
+  const bundle={file:'local signed firmware'},service={api,firmwareBundle:bundle,state:{busy:false},update(){throw Error('Automatic OTA must remain idle');}};
+  await MiniService.prototype.loadLatestFirmware.call(service);assert.equal(requests,0);assert.equal(service.firmwareBundle,bundle);
 });

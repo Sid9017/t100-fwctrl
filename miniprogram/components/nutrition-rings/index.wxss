@@ -1,18 +1,17 @@
 :host { display:block; }
-.nutrition-layout { display:flex; align-items:center; gap:20rpx; margin-top:28rpx; }
+.nutrition-layout { display:flex; align-items:center; gap:52rpx; margin-top:28rpx; }
 .rings { position:relative; flex:0 0 300rpx; width:300rpx; height:300rpx; border-radius:50%; }
 .ring-control { position:absolute; left:0; top:0; width:100%; height:100%; margin:0; padding:0; min-height:0; border:0; border-radius:50%; background:transparent; overflow:visible; line-height:1; opacity:1; }
 .ring-control::after { border:none; }
 .ring-control.is-selected { z-index:5; }
-.ring-image { position:absolute; left:0; top:0; display:block; width:100%; height:100%; pointer-events:none; transition:opacity 300ms ease; }
-.ring-normal { opacity:1; }.ring-expanded { opacity:0; }
-.is-selected .ring-expanded { opacity:1; }
-.nutrition-info { flex:1; min-width:0; color:#353535; }
-.nutrition-heading { display:flex; align-items:center; gap:10rpx; margin-bottom:20rpx; }
-.nutrition-color { flex:none; width:14rpx; height:14rpx; border-radius:50%; transition:background-color 260ms ease; }
+.ring-image { position:absolute; left:0; top:0; display:block; width:100%; height:100%; pointer-events:none; }
+.nutrition-info { display:flex; align-items:center; justify-content:center; align-self:stretch; flex:1; min-width:0; color:#353535; }
+.nutrition-line { display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:10rpx; width:100%; min-width:0; white-space:nowrap; opacity:1; transition:opacity 140ms ease-in-out; }
+.nutrition-line.is-fading { opacity:0; }
+.nutrition-heading { display:inline-flex; align-items:baseline; gap:10rpx; flex:none; }
+.nutrition-color { align-self:center; flex:none; width:14rpx; height:14rpx; border-radius:50%; }
 .nutrition-name { font-size:26rpx; font-weight:600; line-height:1.3; }
-.nutrition-total { margin:4rpx 0 8rpx; font-size:44rpx; line-height:1.15; font-weight:700; font-variant-numeric:tabular-nums; }
+.nutrition-total { flex:none; font-size:44rpx; line-height:1.15; font-weight:700; font-variant-numeric:tabular-nums; }
 .nutrition-unit { margin-left:8rpx; font-size:26rpx; font-weight:500; }
-.nutrition-excess { display:block; margin-top:8rpx; font-size:22rpx; line-height:1.5; font-weight:600; color:#a85136; }
-@media(max-width:350px){.nutrition-layout { gap:14rpx; }.nutrition-name { font-size:24rpx; }}
-@media(prefers-reduced-motion:reduce){.ring-control,.ring-image,.nutrition-color { transition:none; }}
+@media(max-width:350px){.nutrition-layout { gap:40rpx; }.rings { flex-basis:280rpx; width:280rpx; height:280rpx; }}
+@media(prefers-reduced-motion:reduce){.nutrition-line { transition:none; }}

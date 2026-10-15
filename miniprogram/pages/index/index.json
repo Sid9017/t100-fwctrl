@@ -4,10 +4,10 @@
   "usingComponents": {
     "scroll-surface": "/components/scroll-surface/index",
     "device-setup": "/components/device-setup/index",
-    "live-device": "/pairing/device/index",
-    "nutrition-rings": "/components/nutrition-rings/index"
+    "nutrition-rings": "/components/nutrition-rings/index",
+    "scalebot": "/pairing/scalebot/index"
   },
   "componentPlaceholder": {
-    "live-device": "view"
+    "scalebot": "view"
   }
 }

@@ -25,3 +25,7 @@ await writeFile(new URL('../miniprogram/pairing/assets/animation.js',import.meta
 const mealSky=await readFile(new URL('../assets/meal-sky/kcalack-meal-sky.riv',import.meta.url));
 await writeFile(new URL('../miniprogram/pairing/assets/meal-sky.js',import.meta.url),
   '// Generated from assets/meal-sky/kcalack-meal-sky.riv.\nmodule.exports='+JSON.stringify(mealSky.toString('base64'))+';\n');
+
+const scalebot=await readFile(new URL('../assets/scalebot/kcalack-scalebot-status.riv',import.meta.url));
+await writeFile(new URL('../miniprogram/pairing/assets/scalebot.js',import.meta.url),
+  '// Generated from assets/scalebot/kcalack-scalebot-status.riv.\nmodule.exports='+JSON.stringify(scalebot.toString('base64'))+';\n');

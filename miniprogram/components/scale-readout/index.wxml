@@ -1,0 +1,11 @@
+<view class="firmware-scale {{overload && !editing ? 'is-overloaded' : ''}}" style="--scale-unit:{{scaleUnit}}px">
+ <block wx:if="{{!overload || editing}}">
+  <view class="scale-info"><text class="container-value" aria-label="{{container ? 'Container '+containerText+' '+unitText : 'No container selected'}}">{{containerText}}</text><text class="total-value" aria-label="{{container ? 'Total '+totalText+' '+unitText : 'No container selected'}}">{{totalText}}</text></view>
+  <view class="scale-capsule {{editing ? 'is-editing' : ''}}">
+   <view class="scale-digits" style="transform:scaleX({{digitScale}})" aria-hidden="true"><text wx:for="{{digits}}" wx:key="index" class="digit {{item.decimal ? 'decimal' : ''}}">{{item.char}}</text></view>
+   <input class="scale-input" type="digit" value="{{text}}" bindfocus="startEdit" bindinput="input" bindblur="endEdit" aria-label="{{'Edit net weight in '+unitText}}"/>
+   <view class="scale-unit {{displayUnit === 1 ? 'is-oz' : ''}}" aria-hidden="true"><block wx:if="{{displayUnit === 1}}"><text class="unit-letter">o</text><text class="unit-letter">z</text></block><text wx:else class="unit-letter">g</text></view>
+  </view>
+ </block>
+ <text wx:else class="overload">Over - Loaded</text>
+</view>

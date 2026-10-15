@@ -1,0 +1,32 @@
+.dish-calories { display:flex;align-items:center;gap:12rpx;border-top:1rpx solid #edf0e5;padding-top:26rpx;margin-top:28rpx;color:#69705f;font-size:26rpx; }
+.dish-calories .nutrition-value { flex:1;min-width:0;width:0;text-align:right;font-size:38rpx;color:#353535;font-weight:600; }
+
+.calorie-heading,.nutrient-heading { display:flex;align-items:baseline;gap:12rpx;line-height:1.2; }
+.analysis-tag { flex:none;font-size:20rpx;line-height:1.2;color:#69705f;white-space:nowrap; }
+
+.analysis-error { display:flex;align-items:center;gap:16rpx;color:#a03b32;font-size:24rpx; }
+.analysis-error button { flex:none;width:44px;height:44px;min-height:44px;padding:0;background:transparent; }
+.nutrition-toggle { display:flex;justify-content:space-between;align-items:center;width:100%;min-height:48px;padding:16rpx 0 0;margin-top:12rpx;border-radius:0;background:transparent;color:#69705f;font-size:26rpx;font-weight:500; }
+.nutrition-triangle { width:0;height:0;border-left:9rpx solid transparent;border-right:9rpx solid transparent;border-top:12rpx solid #69705f;transition:transform 220ms ease; }
+.nutrition-toggle .is-open { transform:rotate(180deg); }
+.dish-nutrients { max-height:0;overflow:hidden;visibility:hidden;transition:max-height 260ms ease,visibility 260ms; }
+.dish-nutrients.is-open { max-height:500rpx;visibility:visible; }
+.nutrient-inner { padding:8rpx 0; }
+.nutrient-field { display:flex;align-items:center;gap:12rpx;min-height:48px;font-size:26rpx;color:#69705f; }
+.nutrient-label { display:flex;align-items:center;gap:12rpx;flex:1; }
+.nutrient-dot { width:14rpx;height:14rpx;border-radius:50%;flex:none; }
+.nutrient-field .nutrition-value { width:140rpx;min-height:44px;text-align:right;font-size:30rpx;font-weight:600;color:#353535; }
+@media(prefers-reduced-motion:reduce){.dish-nutrients,.nutrition-triangle { transition:none; }}
+.correction-action { height:0;overflow:hidden;visibility:hidden;pointer-events:none;transition:height 280ms cubic-bezier(.22,1,.36,1),visibility 0s 280ms; }
+.correction-action.is-open { height:calc(48px + 20rpx);visibility:visible;pointer-events:auto;transition:height 280ms cubic-bezier(.22,1,.36,1),visibility 0s; }
+.correction-action-inner { padding-top:20rpx;opacity:0;transform:translateY(-16rpx);transition:transform 280ms cubic-bezier(.22,1,.36,1),opacity 200ms ease; }
+.correction-action.is-open .correction-action-inner { opacity:1;transform:translateY(0); }
+.nutrition-recalculate { margin:0;width:100%;height:48px;min-height:48px;padding:0 30rpx;background:#f5f6f0;font-size:26rpx;color:#353535; }
+@media(prefers-reduced-motion:reduce){.correction-action,.correction-action-inner { transition:none; }}
+
+
+.dish-correction { display:block;margin-top:24rpx;color:#69705f;font-size:24rpx; }
+.dish-correction textarea { box-sizing:border-box;width:100%;min-height:80rpx;margin-top:12rpx;padding:20rpx;background:#f5f6f0;border-radius:24rpx;color:#353535;line-height:1.5; }
+
+.dish-ingredients { margin-top:24rpx;color:#69705f;font-size:26rpx;line-height:1.65;overflow-wrap:break-word; }
+.ingredients-label { display:block;margin-bottom:8rpx;font-size:24rpx;font-weight:600; }
